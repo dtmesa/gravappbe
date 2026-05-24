@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MetricType {
+  WEIGHT
+  DURATION
+  REPS
+  DISTANCE
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String
+
+  workouts Workout[]
+  sessions WorkoutSession[]
+
+  createdAt DateTime @default(now())
+}
+
+model Workout {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  order       Int     @default(0)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  exercises Exercise[]
+
+  sessions WorkoutSession[]
+
+  createdAt DateTime @default(now())
+}
+
+model Exercise {
+  id          Int     @id @default(autoincrement())
+  order       Int     @default(0)
+  name        String
+  description String?
+
+  workoutId Int
+  workout   Workout @relation(fields: [workoutId], references: [id])
+
+  sessions ExerciseSession[]
+
+  isWeight   Boolean @default(false)
+  isDuration Boolean @default(false)
+  isDistance Boolean @default(false)
+  isReps     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+model WorkoutSession {
+  id   Int      @id @default(autoincrement())
+  date DateTime @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  workoutId Int
+  workout   Workout @relation(fields: [workoutId], references: [id])
+
+  exercises ExerciseSession[]
+
+  createdAt DateTime @default(now())
+}
+
+model ExerciseSession {
+  id    Int @id @default(autoincrement())
+  order Int @default(0)
+
+  workoutSessionId Int
+  workoutSession   WorkoutSession @relation(fields: [workoutSessionId], references: [id])
+
+  exerciseId Int
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+
+  sets SetSession[]
+
+  createdAt DateTime @default(now())
+}
+
+model SetSession {
+  id    Int @id @default(autoincrement())
+  order Int @default(0)
+
+  weight   Float?
+  reps     Int?
+  duration Int?
+  distance Float?
+
+  exerciseSessionId Int
+  exerciseSession   ExerciseSession @relation(fields: [exerciseSessionId], references: [id])
+
+  createdAt DateTime @default(now())
+}
