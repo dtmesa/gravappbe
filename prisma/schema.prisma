@@ -31,7 +31,7 @@ model Workout {
   order       Int     @default(0)
 
   userId Int
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   exercises Exercise[]
 
@@ -47,7 +47,7 @@ model Exercise {
   description String?
 
   workoutId Int
-  workout   Workout @relation(fields: [workoutId], references: [id])
+  workout   Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 
   sessions ExerciseSession[]
 
@@ -64,10 +64,10 @@ model WorkoutSession {
   date DateTime @default(now())
 
   userId Int
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   workoutId Int
-  workout   Workout @relation(fields: [workoutId], references: [id])
+  workout   Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 
   exercises ExerciseSession[]
 
@@ -79,10 +79,10 @@ model ExerciseSession {
   order Int @default(0)
 
   workoutSessionId Int
-  workoutSession   WorkoutSession @relation(fields: [workoutSessionId], references: [id])
+  workoutSession   WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
 
   exerciseId Int
-  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   sets SetSession[]
 
@@ -99,7 +99,7 @@ model SetSession {
   distance Float?
 
   exerciseSessionId Int
-  exerciseSession   ExerciseSession @relation(fields: [exerciseSessionId], references: [id])
+  exerciseSession   ExerciseSession @relation(fields: [exerciseSessionId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 }

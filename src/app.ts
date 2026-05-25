@@ -4,6 +4,7 @@ import { errorMiddleware } from "./middleware/error.js";
 import authRoutes from "./routes/auth.routes.js";
 import exerciseRoutes from "./routes/exercise.routes.js";
 import exerciseSessionRoutes from "./routes/exerciseSession.routes.js";
+import setSessionRoutes from "./routes/setSession.routes.js";
 import sessionRoutes from "./routes/session.routes.js";
 import workoutRoutes from "./routes/workout.routes.js";
 
@@ -13,12 +14,11 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/auth", authRoutes);
-
 app.use("/workouts", workoutRoutes);
 app.use("/workouts/:workoutId/exercises", exerciseRoutes);
-
-app.use("/workouts/:workoutId/sessions/:sessionId/exerciseSessions", exerciseSessionRoutes);
 app.use("/workouts/:workoutId/sessions", sessionRoutes);
+app.use("/workouts/:workoutId/sessions/:sessionId/exerciseSessions", exerciseSessionRoutes);
+app.use("/workouts/:workoutId/sessions/:sessionId/exerciseSessions/:exerciseSessionId/setSessions", setSessionRoutes);
 
 app.use(errorMiddleware);
 

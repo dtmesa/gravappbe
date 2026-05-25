@@ -32,6 +32,14 @@ router.post("/", authMiddleware, async (req, res) => {
 	res.status(201).json(session);
 });
 
+router.get("/", authMiddleware, async (req, res) => {
+    const exerciseSessionId = Number(req.params.exerciseSessionId);
+    if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+
+    const sets = await prisma.setSession.findMany({ where: { exerciseSessionId }, orderBy: { order: "asc" } });
+    res.json(sets);
+});
+
 router.get("/:id", authMiddleware, async (req, res) => {
 	const sessionId = Number(req.params.id);
 	const workoutSessionId = Number(req.params.sessionId);
