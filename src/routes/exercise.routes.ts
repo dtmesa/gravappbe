@@ -8,41 +8,52 @@ const router = Router({ mergeParams: true });
 const ALLOWED_FIELDS = ["description", "order", "isWeight", "isDuration", "isReps", "isDistance"];
 
 type SessionWithSets = {
-    sets: {
-        weight: number | null;
-        reps: number | null;
-        duration: number | null;
-        distance: number | null;
-    }[];
+	sets: {
+		weight: number | null;
+		reps: number | null;
+		duration: number | null;
+		distance: number | null;
+	}[];
 };
 
-function calculateAverages(sessions: SessionWithSets[], exercise: { isWeight: boolean; isReps: boolean; isDuration: boolean; isDistance: boolean }) {
-    const sessionAverages = sessions
-        .filter((s) => s.sets.length > 0)
-        .map((s) => {
-            const avg = (key: "weight" | "reps" | "duration" | "distance") => {
-                const valid = s.sets.filter((set) => set[key] !== null);
-                return valid.length > 0
-                    ? valid.reduce((sum, set) => sum + (set[key] as number), 0) / valid.length
-                    : null;
-            };
+function calculateAverages(
+	sessions: SessionWithSets[],
+	exercise: { isWeight: boolean; isReps: boolean; isDuration: boolean; isDistance: boolean },
+) {
+	const sessionAverages = sessions
+		.filter((s) => s.sets.length > 0)
+		.map((s) => {
+			const avg = (key: "weight" | "reps" | "duration" | "distance") => {
+				const valid = s.sets.filter((set) => set[key] !== null);
+				return valid.length > 0
+					? valid.reduce((sum, set) => sum + (set[key] as number), 0) / valid.length
+					: null;
+			};
 
-            return {
-                weight: exercise.isWeight ? avg("weight") : null,
-                reps: exercise.isReps ? avg("reps") : null,
-                duration: exercise.isDuration ? avg("duration") : null,
-                distance: exercise.isDistance ? avg("distance") : null,
-            };
-        });
+			return {
+				weight: exercise.isWeight ? avg("weight") : null,
+				reps: exercise.isReps ? avg("reps") : null,
+				duration: exercise.isDuration ? avg("duration") : null,
+				distance: exercise.isDistance ? avg("distance") : null,
+			};
+		});
 
-    const count = sessionAverages.length;
+	const count = sessionAverages.length;
 
-    return {
-        weight: exercise.isWeight ? sessionAverages.reduce((sum, s) => sum + (s.weight ?? 0), 0) / count || 0 : null,
-        reps: exercise.isReps ? sessionAverages.reduce((sum, s) => sum + (s.reps ?? 0), 0) / count || 0 : null,
-        duration: exercise.isDuration ? sessionAverages.reduce((sum, s) => sum + (s.duration ?? 0), 0) / count || 0 : null,
-        distance: exercise.isDistance ? sessionAverages.reduce((sum, s) => sum + (s.distance ?? 0), 0) / count || 0 : null,
-    };
+	return {
+		weight: exercise.isWeight
+			? sessionAverages.reduce((sum, s) => sum + (s.weight ?? 0), 0) / count || 0
+			: null,
+		reps: exercise.isReps
+			? sessionAverages.reduce((sum, s) => sum + (s.reps ?? 0), 0) / count || 0
+			: null,
+		duration: exercise.isDuration
+			? sessionAverages.reduce((sum, s) => sum + (s.duration ?? 0), 0) / count || 0
+			: null,
+		distance: exercise.isDistance
+			? sessionAverages.reduce((sum, s) => sum + (s.distance ?? 0), 0) / count || 0
+			: null,
+	};
 }
 
 router.post("/", authMiddleware, async (req, res) => {
@@ -152,19 +163,19 @@ router.patch("/:id/:field", authMiddleware, async (req, res) => {
 
 router.get("/:id/averages", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
-    const userId = req.user.userId;
+	const userId = req.user.userId;
 
-    const exerciseId = Number(req.params.id);
-    const workoutId = Number(req.params.workoutId);
+	const exerciseId = Number(req.params.id);
+	const workoutId = Number(req.params.workoutId);
 
 	const workout = await prisma.workout.findFirst({ where: { id: workoutId, userId } });
-    if (!workout) throw new AppError("Workout not found", 404, "WORKOUT_NOT_FOUND");
+	if (!workout) throw new AppError("Workout not found", 404, "WORKOUT_NOT_FOUND");
 
 	const exercise = await prisma.exercise.findFirst({ where: { id: exerciseId, workoutId } });
-    if (!exercise) throw new AppError("Exercise not found", 404, "EXERCISE_NOT_FOUND");
+	if (!exercise) throw new AppError("Exercise not found", 404, "EXERCISE_NOT_FOUND");
 
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+	const oneWeekAgo = new Date();
+	oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
 	const recentSessions = await prisma.exerciseSession.findMany({
 		where: {
@@ -186,40 +197,40 @@ router.get("/:id/averages", authMiddleware, async (req, res) => {
 		},
 	});
 
-	return res.json(calculateAverages(recentSessions, exercise))
+	return res.json(calculateAverages(recentSessions, exercise));
 });
 
 router.get("/:id/averages/all", authMiddleware, async (req, res) => {
-    if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
-    const userId = req.user.userId;
+	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+	const userId = req.user.userId;
 
-    const exerciseId = Number(req.params.id);
-    const workoutId = Number(req.params.workoutId);
+	const exerciseId = Number(req.params.id);
+	const workoutId = Number(req.params.workoutId);
 
-    const workout = await prisma.workout.findFirst({ where: { id: workoutId, userId } });
-    if (!workout) throw new AppError("Workout not found", 404, "WORKOUT_NOT_FOUND");
+	const workout = await prisma.workout.findFirst({ where: { id: workoutId, userId } });
+	if (!workout) throw new AppError("Workout not found", 404, "WORKOUT_NOT_FOUND");
 
-    const exercise = await prisma.exercise.findFirst({ where: { id: exerciseId, workoutId } });
-    if (!exercise) throw new AppError("Exercise not found", 404, "EXERCISE_NOT_FOUND");
+	const exercise = await prisma.exercise.findFirst({ where: { id: exerciseId, workoutId } });
+	if (!exercise) throw new AppError("Exercise not found", 404, "EXERCISE_NOT_FOUND");
 
-    const pastSessions = await prisma.exerciseSession.findMany({
-        where: {
-            exerciseId: exercise.id,
-            workoutSession: { userId },
-        },
-        include: {
-            sets: {
-                select: {
-                    weight: true,
-                    reps: true,
-                    duration: true,
-                    distance: true,
-                },
-            },
-        },
-    });
+	const pastSessions = await prisma.exerciseSession.findMany({
+		where: {
+			exerciseId: exercise.id,
+			workoutSession: { userId },
+		},
+		include: {
+			sets: {
+				select: {
+					weight: true,
+					reps: true,
+					duration: true,
+					distance: true,
+				},
+			},
+		},
+	});
 
-	return res.json(calculateAverages(pastSessions, exercise))
+	return res.json(calculateAverages(pastSessions, exercise));
 });
 
 export default router;

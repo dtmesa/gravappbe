@@ -22,22 +22,23 @@ router.post("/", authMiddleware, async (req, res) => {
 });
 
 router.get("/", authMiddleware, async (req, res) => {
-    const workoutSessionId = Number(req.params.sessionId);
+	const workoutSessionId = Number(req.params.sessionId);
 
-    if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
-    const userId = req.user.userId;
+	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+	const userId = req.user.userId;
 
-    const workoutSession = await prisma.workoutSession.findFirst({
-        where: { id: workoutSessionId, userId },
-    });
-    if (!workoutSession) throw new AppError("Workout session not found", 404, "WORKOUTSESSION_NOT_FOUND");
+	const workoutSession = await prisma.workoutSession.findFirst({
+		where: { id: workoutSessionId, userId },
+	});
+	if (!workoutSession)
+		throw new AppError("Workout session not found", 404, "WORKOUTSESSION_NOT_FOUND");
 
-    const sessions = await prisma.exerciseSession.findMany({
-        where: { workoutSessionId },
-        orderBy: { order: "asc" },
-    });
+	const sessions = await prisma.exerciseSession.findMany({
+		where: { workoutSessionId },
+		orderBy: { order: "asc" },
+	});
 
-    res.json(sessions);
+	res.json(sessions);
 });
 
 router.get("/:id", authMiddleware, async (req, res) => {
