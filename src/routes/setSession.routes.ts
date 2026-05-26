@@ -13,11 +13,22 @@ router.post("/", authMiddleware, async (req, res) => {
 
 	const exerciseSession = await prisma.exerciseSession.findFirst({
 		where: { id: exerciseSessionId },
+		include: { exercise: true },
 	});
 	if (!exerciseSession)
 		throw new AppError("Exercise session not found", 404, "EXERCISESESSION_NOT_FOUND");
 
-	const setSession = await prisma.setSession.create({ data: { exerciseSessionId } });
+	const { exercise } = exerciseSession;
+
+	const setSession = await prisma.setSession.create({
+		data: {
+			exerciseSessionId,
+			weight: exercise.isWeight ? 0 : null,
+			reps: exercise.isReps ? 0 : null,
+			duration: exercise.isDuration ? 0 : null,
+			distance: exercise.isDistance ? 0 : null,
+		},
+	});
 	res.status(201).json(setSession);
 });
 
@@ -55,7 +66,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 
 router.patch("/:id/:field", authMiddleware, async (req, res) => {
 	const id = Number(req.params.id);
-	const field = req.params.field;
+	const field = req.params.field as string;
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
 	if (!ALLOWED_FIELDS.includes(field)) throw new AppError("Invalid field", 400, "INVALID_FIELD");

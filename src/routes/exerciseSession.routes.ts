@@ -5,8 +5,6 @@ import { AppError } from "../utils/AppError.js";
 
 const router = Router({ mergeParams: true });
 
-const ALLOWED_FIELDS = [""];
-
 router.post("/", authMiddleware, async (req, res) => {
 	const workoutId = Number(req.params.workoutId);
 	const workoutSessionId = Number(req.params.sessionId);
@@ -87,18 +85,12 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 	res.sendStatus(204);
 });
 
-router.patch("/:id/:field", authMiddleware, async (req, res) => {
+router.get("/:id/previous-set-count", authMiddleware, async (req, res) => {
 	const sessionId = Number(req.params.id);
-	const field = req.params.field as string;
 	const workoutSessionId = Number(req.params.sessionId);
 
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 	const userId = req.user.userId;
-
-	if (!ALLOWED_FIELDS.includes(field)) throw new AppError("Invalid field", 400, "INVALID_FIELD");
-
-	const value = req.body[field];
-	if (value == null) throw new AppError("Missing fields", 400, "MISSING_FIELDS");
 
 	const workoutSession = await prisma.workoutSession.findFirst({
 		where: { id: workoutSessionId, userId },
@@ -111,12 +103,17 @@ router.patch("/:id/:field", authMiddleware, async (req, res) => {
 	});
 	if (!session) throw new AppError("Exercise session not found", 404, "EXERCISESESSION_NOT_FOUND");
 
-	const updated = await prisma.exerciseSession.update({
-		where: { id: sessionId },
-		data: { [field]: value },
+	const previous = await prisma.exerciseSession.findFirst({
+		where: {
+			exerciseId: session.exerciseId,
+			workoutSession: { workoutId: workoutSession.workoutId },
+			id: { not: sessionId },
+		},
+		orderBy: { workoutSession: { date: "desc" } },
+		include: { _count: { select: { sets: true } } },
 	});
 
-	res.json(updated);
+	res.json({ count: previous?._count.sets ?? 1 });
 });
 
 export default router;
