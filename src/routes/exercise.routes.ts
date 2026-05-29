@@ -167,6 +167,7 @@ router.get("/:id/averages", authMiddleware, async (req, res) => {
 
 	const exerciseId = Number(req.params.id);
 	const workoutId = Number(req.params.workoutId);
+	const excludeSessionId = Number(req.query.excludeSessionId);
 
 	const workout = await prisma.workout.findFirst({ where: { id: workoutId, userId } });
 	if (!workout) throw new AppError("Workout not found", 404, "WORKOUT_NOT_FOUND");
@@ -183,6 +184,7 @@ router.get("/:id/averages", authMiddleware, async (req, res) => {
 			workoutSession: {
 				date: { gte: oneWeekAgo },
 				userId: req.user.userId,
+				id: { not: excludeSessionId },
 			},
 		},
 		include: {
@@ -206,6 +208,7 @@ router.get("/:id/averages/all", authMiddleware, async (req, res) => {
 
 	const exerciseId = Number(req.params.id);
 	const workoutId = Number(req.params.workoutId);
+	const excludeSessionId = Number(req.query.excludeSessionId);
 
 	const workout = await prisma.workout.findFirst({ where: { id: workoutId, userId } });
 	if (!workout) throw new AppError("Workout not found", 404, "WORKOUT_NOT_FOUND");
@@ -216,7 +219,10 @@ router.get("/:id/averages/all", authMiddleware, async (req, res) => {
 	const pastSessions = await prisma.exerciseSession.findMany({
 		where: {
 			exerciseId: exercise.id,
-			workoutSession: { userId },
+			workoutSession: {
+				userId,
+				id: { not: excludeSessionId },
+			},
 		},
 		include: {
 			sets: {
