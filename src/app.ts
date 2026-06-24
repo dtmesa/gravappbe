@@ -10,7 +10,15 @@ import workoutSessionRoutes from "./routes/workoutSession.routes.js";
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins =
+	process.env.NODE_ENV === "production" ? ["https://placeholder.com"] : ["http://localhost:8081"];
+
+app.use(
+	cors({
+		origin: allowedOrigins,
+		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+	}),
+);
 app.use(express.json());
 
 app.use("/auth", authRoutes);

@@ -38,6 +38,11 @@ model Workout {
   sessions WorkoutSession[]
 
   createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+
+  @@index([userId])
+  @@index([userId, order])
 }
 
 model Exercise {
@@ -57,6 +62,10 @@ model Exercise {
   isReps     Boolean @default(false)
 
   createdAt DateTime @default(now())
+
+  @@unique([workoutId, name])
+
+  @@index([workoutId, order])
 }
 
 model WorkoutSession {
@@ -72,6 +81,11 @@ model WorkoutSession {
   exercises ExerciseSession[]
 
   createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([workoutId])
+  @@index([userId, workoutId])
+  @@index([workoutId, date])
 }
 
 model ExerciseSession {
@@ -87,6 +101,9 @@ model ExerciseSession {
   sets SetSession[]
 
   createdAt DateTime @default(now())
+
+  @@index([workoutSessionId])
+  @@index([exerciseId])
 }
 
 model SetSession {
@@ -102,4 +119,6 @@ model SetSession {
   exerciseSession   ExerciseSession @relation(fields: [exerciseSessionId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+
+  @@index([exerciseSessionId, order])
 }

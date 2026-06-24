@@ -1,18 +1,26 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { prisma } from "../prisma/client.js";
+import {
+	patchSetSessionBodySchema,
+	patchSetSessionSchema,
+	setIDParamsSchema,
+	setSessionParamsSchema,
+} from "../schemas/setSession.js";
 import { AppError } from "../utils/AppError.js";
 
 const router = Router({ mergeParams: true });
 
-const ALLOWED_FIELDS = ["weight", "reps", "distance", "duration"];
-
 router.post("/", authMiddleware, async (req, res) => {
-	const exerciseSessionId = Number(req.params.exerciseSessionId);
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
+	const { exerciseSessionId } = setSessionParamsSchema.parse(req.params);
+
 	const exerciseSession = await prisma.exerciseSession.findFirst({
-		where: { id: exerciseSessionId },
+		where: {
+			id: exerciseSessionId,
+			workoutSession: { userId: req.user.userId },
+		},
 		include: { exercise: true },
 	});
 	if (!exerciseSession)
@@ -33,51 +41,73 @@ router.post("/", authMiddleware, async (req, res) => {
 });
 
 router.get("/", authMiddleware, async (req, res) => {
-	const exerciseSessionId = Number(req.params.exerciseSessionId);
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
+	const { exerciseSessionId } = setSessionParamsSchema.parse(req.params);
+
 	const sets = await prisma.setSession.findMany({
-		where: { exerciseSessionId },
+		where: {
+			exerciseSessionId,
+			exerciseSession: { workoutSession: { userId: req.user.userId } },
+		},
 		orderBy: { order: "asc" },
 	});
 	res.json(sets);
 });
 
 router.get("/:id", authMiddleware, async (req, res) => {
-	const id = Number(req.params.id);
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const set = await prisma.setSession.findFirst({ where: { id } });
+	const { id } = setIDParamsSchema.parse(req.params);
+	const userId = req.user.userId;
+
+	const set = await prisma.setSession.findFirst({
+		where: {
+			id,
+			exerciseSession: {
+				workoutSession: { userId },
+			},
+		},
+	});
 	if (!set) throw new AppError("Set session not found", 404, "SETSESSION_NOT_FOUND");
 
 	res.json(set);
 });
 
 router.delete("/:id", authMiddleware, async (req, res) => {
-	const id = Number(req.params.id);
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const set = await prisma.setSession.findFirst({ where: { id } });
-	if (!set) throw new AppError("Set session not found", 404, "SETSESSION_NOT_FOUND");
+	const { id } = setIDParamsSchema.parse(req.params);
+	const userId = req.user.userId;
 
-	await prisma.setSession.delete({ where: { id } });
+	const deleted = await prisma.setSession.deleteMany({
+		where: {
+			id,
+			exerciseSession: { workoutSession: { userId } },
+		},
+	});
+	if (deleted.count === 0) throw new AppError("Set session not found", 404, "SETSESSION_NOT_FOUND");
+
 	res.sendStatus(204);
 });
 
 router.patch("/:id/:field", authMiddleware, async (req, res) => {
-	const id = Number(req.params.id);
-	const field = req.params.field as string;
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	if (!ALLOWED_FIELDS.includes(field)) throw new AppError("Invalid field", 400, "INVALID_FIELD");
+	const { id } = setIDParamsSchema.parse(req.params);
+	const { field } = patchSetSessionSchema.parse(req.params);
+	const userId = req.user.userId;
 
-	const value = req.body[field];
-	if (value == null) throw new AppError("Missing fields", 400, "MISSING_FIELDS");
+	const body = patchSetSessionBodySchema.parse({ field, ...req.body });
+	const value = body[field as keyof typeof body];
 
-	const set = await prisma.setSession.findFirst({ where: { id } });
-	if (!set) throw new AppError("Set session not found", 404, "SETSESSION_NOT_FOUND");
-
-	const updated = await prisma.setSession.update({ where: { id }, data: { [field]: value } });
+	const updated = await prisma.setSession.update({
+		where: {
+			id,
+			exerciseSession: { workoutSession: { userId } },
+		},
+		data: { [field]: value },
+	});
 	res.json(updated);
 });
 
