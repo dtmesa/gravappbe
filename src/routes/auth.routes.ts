@@ -14,6 +14,15 @@ import { loginLimiter, passwordLimiter, registerLimiter } from "../utils/redis/r
 
 const router = Router();
 
+router.get("/me", authMiddleware, async (req, res) => {
+	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+
+	const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+	if (!user) throw new AppError("User not found", 404, "USER_NOT_FOUND");
+
+	res.json({ username: user.username });
+});
+
 router.post("/register", async (req, res) => {
 	const { username, password } = registerSchema.parse(req.body);
 

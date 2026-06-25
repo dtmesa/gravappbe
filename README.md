@@ -6,10 +6,8 @@ Backend API for a full-stack fitness tracking application built with Express, Ty
 
 - User authentication with JWT
 - Secure password hashing with bcrypt
-- Workout management
-- Exercise management
+- Workout & exercise management
 - Workout session tracking
-- Exercise session tracking
 - PostgreSQL database integration via Prisma ORM
 - Type-safe TypeScript codebase
 - Biome linting and formatting
@@ -23,4 +21,6 @@ Backend API for a full-stack fitness tracking application built with Express, Ty
 - Prisma ORM
 - JWT Authentication
 - bcrypt
+- Zod
+- Redis
 - Biome
