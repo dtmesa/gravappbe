@@ -10,11 +10,18 @@ import {
 } from "../schemas/auth.js";
 import { AppError } from "../utils/AppError.js";
 import { signToken } from "../utils/jwt.js";
+import { loginLimiter, passwordLimiter, registerLimiter } from "../utils/redis/rateLimiter.js";
 
 const router = Router();
 
 router.post("/register", async (req, res) => {
 	const { username, password } = registerSchema.parse(req.body);
+
+	try {
+		await registerLimiter.consume(req.ip ?? "unknown");
+	} catch {
+		throw new AppError("Too many registration attempts", 429, "RATE_LIMITED");
+	}
 
 	const hashed = await bcrypt.hash(password, 12);
 
@@ -26,17 +33,27 @@ router.post("/register", async (req, res) => {
 		},
 	});
 
+	await registerLimiter.delete(req.ip ?? "unknown");
+
 	res.status(201).json(user);
 });
 
 router.post("/login", async (req, res) => {
 	const { username, password } = loginSchema.parse(req.body);
 
+	try {
+		await loginLimiter.consume(req.ip ?? "unknown");
+	} catch {
+		throw new AppError("Too many login attempts", 429, "RATE_LIMITED");
+	}
+
 	const user = await prisma.user.findUnique({ where: { username } });
 	if (!user) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
 
 	const same = await bcrypt.compare(password, user.password);
 	if (!same) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
+
+	await loginLimiter.delete(req.ip ?? "unknown");
 
 	const token = signToken(user.id);
 
@@ -74,6 +91,12 @@ router.patch("/password", authMiddleware, async (req, res) => {
 	const { currentPassword, newPassword } = updatePasswordSchema.parse(req.body);
 	const userId = req.user.userId;
 
+	try {
+		await passwordLimiter.consume(userId.toString());
+	} catch {
+		throw new AppError("Too many attempts", 429, "RATE_LIMITED");
+	}
+
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
 		select: { password: true },
@@ -93,6 +116,8 @@ router.patch("/password", authMiddleware, async (req, res) => {
 		where: { id: userId },
 		data: { password: hashed },
 	});
+
+	await passwordLimiter.delete(userId.toString());
 
 	res.sendStatus(204);
 });

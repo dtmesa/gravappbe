@@ -10,8 +10,10 @@ import {
 } from "../schemas/exercise.js";
 import { AppError } from "../utils/AppError.js";
 import { assertExerciseAccess, assertWorkoutAccess, calculateAverages } from "../utils/exercise.js";
+import { redis } from "../utils/redis/client.js";
 
 const router = Router({ mergeParams: true });
+const CACHE_TTL = 60 * 15;
 
 router.post("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
@@ -111,6 +113,10 @@ router.get("/:id/averages", authMiddleware, async (req, res) => {
 
 	const exercise = await assertExerciseAccess(exerciseId, userId);
 
+	const cacheKey = `averages:weekly:${exerciseId}:exclude:${excludeSessionId ?? "none"}`;
+	const cached = await redis.get(cacheKey);
+	if (cached) return res.json(JSON.parse(cached));
+
 	const oneWeekAgo = new Date();
 	oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -134,8 +140,10 @@ router.get("/:id/averages", authMiddleware, async (req, res) => {
 			},
 		},
 	});
+	const result = calculateAverages(recentSessions, exercise);
 
-	return res.json(calculateAverages(recentSessions, exercise));
+	await redis.set(cacheKey, JSON.stringify(result), "EX", CACHE_TTL);
+	return res.json(result);
 });
 
 router.get("/:id/averages/all", authMiddleware, async (req, res) => {
@@ -148,6 +156,10 @@ router.get("/:id/averages/all", authMiddleware, async (req, res) => {
 	await assertWorkoutAccess(workoutId, userId);
 
 	const exercise = await assertExerciseAccess(exerciseId, userId);
+
+	const cacheKey = `averages:all:${exerciseId}:exclude:${excludeSessionId ?? "none"}`;
+	const cached = await redis.get(cacheKey);
+	if (cached) return res.json(JSON.parse(cached));
 
 	const pastSessions = await prisma.exerciseSession.findMany({
 		where: {
@@ -168,8 +180,10 @@ router.get("/:id/averages/all", authMiddleware, async (req, res) => {
 			},
 		},
 	});
+	const result = calculateAverages(pastSessions, exercise);
 
-	return res.json(calculateAverages(pastSessions, exercise));
+	await redis.set(cacheKey, JSON.stringify(result), "EX", CACHE_TTL);
+	return res.json(result);
 });
 
 export default router;

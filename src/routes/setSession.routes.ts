@@ -50,7 +50,7 @@ router.get("/", authMiddleware, async (req, res) => {
 			exerciseSessionId,
 			exerciseSession: { workoutSession: { userId: req.user.userId } },
 		},
-		orderBy: { order: "asc" },
+		orderBy: { id: "asc" },
 	});
 	res.json(sets);
 });
