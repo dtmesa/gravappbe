@@ -11,7 +11,7 @@ import workoutSessionRoutes from "./routes/workoutSession.routes.js";
 const app = express();
 
 const allowedOrigins =
-	process.env.NODE_ENV === "production" ? ["https://placeholder.com"] : ["http://localhost:8081"];
+	process.env.NODE_ENV === "production" ? ["https://placeholder.com"] : [true];
 
 app.use(
 	cors({

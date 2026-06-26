@@ -3,6 +3,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { prisma } from "../prisma/client.js";
 import {
+	deleteAccountSchema,
 	loginSchema,
 	registerSchema,
 	updatePasswordSchema,
@@ -127,6 +128,27 @@ router.patch("/password", authMiddleware, async (req, res) => {
 	});
 
 	await passwordLimiter.delete(userId.toString());
+
+	res.sendStatus(204);
+});
+
+router.delete("/delete", authMiddleware, async (req, res) => {
+	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+
+	const { password } = deleteAccountSchema.parse(req.body);
+	const userId = req.user.userId;
+
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: { password: true },
+	});
+
+	if (!user) throw new AppError("User not found", 404, "USER_NOT_FOUND");
+
+	const valid = await bcrypt.compare(password, user.password);
+	if (!valid) throw new AppError("Incorrect password", 401, "INVALID_PASSWORD");
+
+	await prisma.user.delete({ where: { id: userId } });
 
 	res.sendStatus(204);
 });
