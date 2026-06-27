@@ -4,14 +4,14 @@ import { errorMiddleware } from "./middleware/error.js";
 import authRoutes from "./routes/auth.routes.js";
 import exerciseRoutes from "./routes/exercise.routes.js";
 import exerciseSessionRoutes from "./routes/exerciseSession.routes.js";
+import historyRoutes from "./routes/history.routes.js";
 import setSessionRoutes from "./routes/setSession.routes.js";
 import workoutRoutes from "./routes/workout.routes.js";
 import workoutSessionRoutes from "./routes/workoutSession.routes.js";
 
 const app = express();
 
-const allowedOrigins =
-	process.env.NODE_ENV === "production" ? ["https://placeholder.com"] : [true];
+const allowedOrigins = process.env.NODE_ENV === "production" ? ["https://placeholder.com"] : [true];
 
 app.use(
 	cors({
@@ -22,6 +22,7 @@ app.use(
 app.use(express.json());
 
 app.use("/auth", authRoutes);
+app.use("/history", historyRoutes);
 app.use("/workouts", workoutRoutes);
 app.use("/workouts/:workoutId/exercises", exerciseRoutes);
 app.use("/workouts/:workoutId/sessions", workoutSessionRoutes);

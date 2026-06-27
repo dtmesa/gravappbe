@@ -1,0 +1,44 @@
+import { Router } from "express";
+import { authMiddleware } from "../middleware/auth.js";
+import { prisma } from "../prisma/client.js";
+import { monthQuerySchema } from "../schemas/workoutSession.js";
+import { AppError } from "../utils/AppError.js";
+import { redis } from "../utils/redis/client.js";
+
+const router = Router();
+const CACHE_TTL = 60 * 15;
+
+router.get("/sessions", authMiddleware, async (req, res) => {
+	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+
+	const userId = req.user.userId;
+	const {
+		month: { rawMonth, start, end },
+	} = monthQuerySchema.parse(req.query);
+
+	const cacheKey = `sessions:user:${userId}:month:${rawMonth}`;
+	const cached = await redis.get(cacheKey);
+	if (cached) return res.json(JSON.parse(cached));
+
+	const sessions = await prisma.workoutSession.findMany({
+		where: {
+			userId,
+			date: { gte: start, lt: end },
+		},
+		include: {
+			workout: { select: { name: true } },
+			exercises: {
+				include: {
+					exercise: { select: { name: true } },
+					sets: true,
+				},
+			},
+		},
+		orderBy: { date: "asc" },
+	});
+
+	await redis.set(cacheKey, JSON.stringify(sessions), "EX", CACHE_TTL);
+	return res.json(sessions);
+});
+
+export default router;

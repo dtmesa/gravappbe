@@ -1,10 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { prisma } from "../prisma/client.js";
-import {
-	workoutSessionIdParamsSchema,
-	workoutSessionParamsSchema,
-} from "../schemas/workoutSession.js";
+import { idSchema, workoutIdSchema } from "../schemas/workoutSession.js";
 import { AppError } from "../utils/AppError.js";
 
 const router = Router({ mergeParams: true });
@@ -12,7 +9,7 @@ const router = Router({ mergeParams: true });
 router.post("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { workoutId } = workoutSessionParamsSchema.parse(req.params);
+	const { workoutId } = workoutIdSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const workout = await prisma.workout.findFirst({ where: { id: workoutId, userId } });
@@ -26,10 +23,13 @@ router.post("/", authMiddleware, async (req, res) => {
 router.get("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id: sessionId } = workoutSessionIdParamsSchema.parse(req.params);
+	const { id: sessionId } = idSchema.parse(req.params);
 	const userId = req.user.userId;
 
-	const session = await prisma.workoutSession.findFirst({ where: { id: sessionId, userId } });
+	const session = await prisma.workoutSession.findFirst({
+		where: { id: sessionId, userId },
+		include: { workout: true },
+	});
 	if (!session) throw new AppError("Workout session not found", 404, "WORKOUTSESSION_NOT_FOUND");
 
 	res.json(session);
@@ -38,7 +38,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
 router.delete("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id: sessionId } = workoutSessionIdParamsSchema.parse(req.params);
+	const { id: sessionId } = idSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	await prisma.workoutSession.delete({ where: { id: sessionId, userId } });
