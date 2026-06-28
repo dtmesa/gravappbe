@@ -8,8 +8,8 @@
 		"build": "tsc",
 		"start": "node dist/server.js",
 		"prisma": "prisma",
-		"check": "biome check .",
-		"fix": "biome check . --write"
+		"check": "biome check ./src",
+		"fix": "biome check ./src --fix"
 	},
 	"keywords": [],
 	"author": "",
