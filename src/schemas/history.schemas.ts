@@ -1,13 +1,5 @@
 import { z } from "zod";
 
-export const workoutIdSchema = z.object({
-	workoutId: z.coerce.number().int().positive(),
-});
-
-export const idSchema = z.object({
-	id: z.coerce.number().int().positive(),
-});
-
 export const monthQuerySchema = z.object({
 	month: z
 		.string()

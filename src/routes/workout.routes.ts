@@ -1,13 +1,13 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/auth.js";
-import { prisma } from "../prisma/client.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import { prisma } from "../prisma/client.prisma.js";
 import {
 	createWorkoutSchema,
 	patchWorkoutBodySchema,
 	patchWorkoutSchema,
 	workoutParamsSchema,
-} from "../schemas/workout.js";
-import { AppError } from "../utils/AppError.js";
+} from "../schemas/workout.schemas.js";
+import { AppError } from "../utils/AppError.utils.js";
 
 const router = Router();
 

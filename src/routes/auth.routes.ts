@@ -1,17 +1,17 @@
 import bcrypt from "bcrypt";
 import { Router } from "express";
-import { authMiddleware } from "../middleware/auth.js";
-import { prisma } from "../prisma/client.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import { prisma } from "../prisma/client.prisma.js";
+import { loginLimiter, passwordLimiter, registerLimiter } from "../redis/rateLimiter.redis.js";
 import {
 	deleteAccountSchema,
 	loginSchema,
 	registerSchema,
 	updatePasswordSchema,
 	updateUsernameSchema,
-} from "../schemas/auth.js";
-import { AppError } from "../utils/AppError.js";
-import { signToken } from "../utils/jwt.js";
-import { loginLimiter, passwordLimiter, registerLimiter } from "../utils/redis/rateLimiter.js";
+} from "../schemas/auth.schemas.js";
+import { AppError } from "../utils/AppError.utils.js";
+import { signToken } from "../utils/jwt.utils.js";
 
 const router = Router();
 

@@ -1,5 +1,5 @@
-import { prisma } from "../prisma/client.js";
-import { AppError } from "../utils/AppError.js";
+import { prisma } from "../prisma/client.prisma.js";
+import { AppError } from "./AppError.utils.js";
 
 type SessionWithSets = {
 	sets: {

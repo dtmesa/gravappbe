@@ -1,16 +1,20 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/auth.js";
-import { prisma } from "../prisma/client.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import { prisma } from "../prisma/client.prisma.js";
+import { redis } from "../redis/client.redis.js";
 import {
 	createExerciseSchema,
 	excludeSessionSchema,
 	exerciseParamsSchema,
 	patchExerciseSchema,
 	workoutParamsSchema,
-} from "../schemas/exercise.js";
-import { AppError } from "../utils/AppError.js";
-import { assertExerciseAccess, assertWorkoutAccess, calculateAverages } from "../utils/exercise.js";
-import { redis } from "../utils/redis/client.js";
+} from "../schemas/exercise.schemas.js";
+import { AppError } from "../utils/AppError.utils.js";
+import {
+	assertExerciseAccess,
+	assertWorkoutAccess,
+	calculateAverages,
+} from "../utils/exercise.utils.js";
 
 const router = Router({ mergeParams: true });
 const CACHE_TTL = 60 * 15;

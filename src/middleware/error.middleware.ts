@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
-import { AppError } from "../utils/AppError.js";
+import { AppError } from "../utils/AppError.utils.js";
 
 export function errorMiddleware(err: unknown, _: Request, res: Response, __: NextFunction) {
 	if (err instanceof Prisma.PrismaClientKnownRequestError) {

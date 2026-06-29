@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/auth.js";
-import { prisma } from "../prisma/client.js";
-import { monthQuerySchema } from "../schemas/workoutSession.js";
-import { AppError } from "../utils/AppError.js";
-import { redis } from "../utils/redis/client.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import { prisma } from "../prisma/client.prisma.js";
+import { redis } from "../redis/client.redis.js";
+import { monthQuerySchema } from "../schemas/history.schemas.js";
+import { AppError } from "../utils/AppError.utils.js";
 
 const router = Router();
 const CACHE_TTL = 60 * 15;

@@ -1,6 +1,6 @@
 import cors from "cors";
 import express from "express";
-import { errorMiddleware } from "./middleware/error.js";
+import { errorMiddleware } from "./middleware/error.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
 import exerciseRoutes from "./routes/exercise.routes.js";
 import exerciseSessionRoutes from "./routes/exerciseSession.routes.js";
@@ -16,7 +16,7 @@ const allowedOrigins = process.env.NODE_ENV === "production" ? ["https://placeho
 app.use(
 	cors({
 		origin: allowedOrigins,
-		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+		methods: ["GET", "POST", "PATCH", "DELETE"],
 	}),
 );
 app.use(express.json());

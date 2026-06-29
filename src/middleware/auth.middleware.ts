@@ -1,7 +1,7 @@
 import type { RequestHandler } from "express";
 import jwt from "jsonwebtoken";
-import { AppError } from "../utils/AppError.js";
-import { JWT_SECRET } from "../utils/jwt.js";
+import { AppError } from "../utils/AppError.utils.js";
+import { JWT_SECRET } from "../utils/jwt.utils.js";
 
 interface jwtPayload {
 	userId: number;

@@ -1,13 +1,13 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/auth.js";
-import { prisma } from "../prisma/client.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import { prisma } from "../prisma/client.prisma.js";
 import {
 	patchSetSessionBodySchema,
 	patchSetSessionSchema,
 	setIDParamsSchema,
 	setSessionParamsSchema,
-} from "../schemas/setSession.js";
-import { AppError } from "../utils/AppError.js";
+} from "../schemas/setSession.schemas.js";
+import { AppError } from "../utils/AppError.utils.js";
 
 const router = Router({ mergeParams: true });
 

@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/auth.js";
-import { prisma } from "../prisma/client.js";
-import { idSchema, workoutIdSchema } from "../schemas/workoutSession.js";
-import { AppError } from "../utils/AppError.js";
-import { redis } from "../utils/redis/client.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import { prisma } from "../prisma/client.prisma.js";
+import { redis } from "../redis/client.redis.js";
+import { dateSchema, idSchema, workoutIdSchema } from "../schemas/workoutSession.schemas.js";
+import { AppError } from "../utils/AppError.utils.js";
 
 const router = Router({ mergeParams: true });
 
@@ -16,7 +16,16 @@ router.post("/", authMiddleware, async (req, res) => {
 	const workout = await prisma.workout.findFirst({ where: { id: workoutId, userId } });
 	if (!workout) throw new AppError("Workout not found", 404, "WORKOUT_NOT_FOUND");
 
-	const session = await prisma.workoutSession.create({ data: { workoutId, userId } });
+	const { date } = dateSchema.parse(req.body);
+
+	const session = await prisma.workoutSession.create({
+		data: {
+			workoutId,
+			userId,
+			...(date && { date: new Date(date) }),
+		},
+		include: { workout: true },
+	});
 
 	const month = new Date(session.date).toISOString().slice(0, 7);
 	await redis.del(`sessions:user:${userId}:month:${month}`);
