@@ -51,6 +51,22 @@ router.get("/:id", authMiddleware, async (req, res) => {
 	res.json(session);
 });
 
+router.get("/", authMiddleware, async (req, res) => {
+	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
+
+	const { sessionId: workoutSessionId } = workoutSessionParamsSchema.parse(req.params);
+	const userId = req.user.userId;
+
+	const sessions = await prisma.exerciseSession.findMany({
+		where: {
+			workoutSessionId,
+			workoutSession: { userId },
+		},
+	});
+
+	res.json(sessions);
+});
+
 router.delete("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
