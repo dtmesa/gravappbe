@@ -3,11 +3,12 @@ import { authMiddleware } from "../middleware/auth.middleware.js";
 import { prisma } from "../prisma/client.prisma.js";
 import { redis } from "../redis/client.redis.js";
 import {
-	createExerciseSchema,
-	excludeSessionSchema,
-	exerciseParamsSchema,
-	patchExerciseSchema,
-	workoutParamsSchema,
+	createSchema,
+	excludeIdSchema,
+	exerciseIdsSchema,
+	patchBodySchema,
+	patchSchema,
+	workoutIdSchema,
 } from "../schemas/exercise.schemas.js";
 import { AppError } from "../utils/AppError.utils.js";
 import {
@@ -23,8 +24,8 @@ router.post("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
 	const userId = req.user.userId;
-	const { workoutId } = workoutParamsSchema.parse(req.params);
-	const { name } = createExerciseSchema.parse(req.body);
+	const { workoutId } = workoutIdSchema.parse(req.params);
+	const { name } = createSchema.parse(req.body);
 
 	if (!name) throw new AppError("Missing fields", 400, "MISSING_FIELDS");
 
@@ -48,7 +49,7 @@ router.get("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
 	const userId = req.user.userId;
-	const { workoutId } = workoutParamsSchema.parse(req.params);
+	const { workoutId } = workoutIdSchema.parse(req.params);
 
 	await assertWorkoutAccess(workoutId, userId);
 
@@ -78,7 +79,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
 	const userId = req.user.userId;
-	const { workoutId, id: exerciseId } = exerciseParamsSchema.parse(req.params);
+	const { workoutId, id: exerciseId } = exerciseIdsSchema.parse(req.params);
 
 	const deleted = await prisma.exercise.deleteMany({
 		where: { id: exerciseId, workoutId, workout: { userId } },
@@ -92,9 +93,10 @@ router.patch("/:id/:field", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
 	const userId = req.user.userId;
-	const { workoutId, id: exerciseId } = exerciseParamsSchema.parse(req.params);
-	const { field } = patchExerciseSchema.parse(req.params);
-	const value = req.body[field];
+	const { workoutId, id: exerciseId } = exerciseIdsSchema.parse(req.params);
+	const { field } = patchSchema.parse(req.params);
+	const body = patchBodySchema.parse({ field, ...req.body });
+	const value = body[field as keyof typeof body];
 
 	if (value == null) throw new AppError("Missing fields", 400, "MISSING_FIELDS");
 
@@ -110,8 +112,8 @@ router.get("/:id/averages", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
 	const userId = req.user.userId;
-	const { workoutId, id: exerciseId } = exerciseParamsSchema.parse(req.params);
-	const { excludeSessionId } = excludeSessionSchema.parse(req.query);
+	const { workoutId, id: exerciseId } = exerciseIdsSchema.parse(req.params);
+	const { excludeSessionId } = excludeIdSchema.parse(req.query);
 
 	await assertWorkoutAccess(workoutId, userId);
 
@@ -154,8 +156,8 @@ router.get("/:id/averages/all", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
 	const userId = req.user.userId;
-	const { workoutId, id: exerciseId } = exerciseParamsSchema.parse(req.params);
-	const { excludeSessionId } = excludeSessionSchema.parse(req.query);
+	const { workoutId, id: exerciseId } = exerciseIdsSchema.parse(req.params);
+	const { excludeSessionId } = excludeIdSchema.parse(req.query);
 
 	await assertWorkoutAccess(workoutId, userId);
 

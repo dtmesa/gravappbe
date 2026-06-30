@@ -1,14 +1,14 @@
 import { z } from "zod";
 
-export const workoutSessionParamsSchema = z.object({
+export const workoutSessionIdSchema = z.object({
 	sessionId: z.coerce.number().int().positive(),
 });
 
-export const createExerciseSessionSchema = z.object({
+export const exerciseIdSchema = z.object({
 	exerciseId: z.coerce.number().int().positive(),
 });
 
-export const sessionsParamsSchema = z.object({
+export const sessionsIdsSchema = z.object({
 	id: z.coerce.number().int().positive(),
 	sessionId: z.coerce.number().int().positive(),
 });

@@ -2,9 +2,9 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { prisma } from "../prisma/client.prisma.js";
 import {
-	createExerciseSessionSchema,
-	sessionsParamsSchema,
-	workoutSessionParamsSchema,
+	exerciseIdSchema,
+	sessionsIdsSchema,
+	workoutSessionIdSchema,
 } from "../schemas/exerciseSession.schemas.js";
 import { AppError } from "../utils/AppError.utils.js";
 
@@ -13,8 +13,8 @@ const router = Router({ mergeParams: true });
 router.post("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { sessionId: workoutSessionId } = workoutSessionParamsSchema.parse(req.params);
-	const { exerciseId } = createExerciseSessionSchema.parse(req.body);
+	const { sessionId: workoutSessionId } = workoutSessionIdSchema.parse(req.params);
+	const { exerciseId } = exerciseIdSchema.parse(req.body);
 	const userId = req.user.userId;
 
 	const workoutSession = await prisma.workoutSession.findFirst({
@@ -36,7 +36,7 @@ router.post("/", authMiddleware, async (req, res) => {
 router.get("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id: sessionId, sessionId: workoutSessionId } = sessionsParamsSchema.parse(req.params);
+	const { id: sessionId, sessionId: workoutSessionId } = sessionsIdsSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const session = await prisma.exerciseSession.findFirst({
@@ -54,7 +54,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
 router.get("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { sessionId: workoutSessionId } = workoutSessionParamsSchema.parse(req.params);
+	const { sessionId: workoutSessionId } = workoutSessionIdSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const sessions = await prisma.exerciseSession.findMany({
@@ -70,7 +70,7 @@ router.get("/", authMiddleware, async (req, res) => {
 router.delete("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id: sessionId, sessionId: workoutSessionId } = sessionsParamsSchema.parse(req.params);
+	const { id: sessionId, sessionId: workoutSessionId } = sessionsIdsSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const deleted = await prisma.exerciseSession.deleteMany({
@@ -89,7 +89,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 router.get("/:id/previous-set-count", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id: sessionId, sessionId: workoutSessionId } = sessionsParamsSchema.parse(req.params);
+	const { id: sessionId, sessionId: workoutSessionId } = sessionsIdsSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const session = await prisma.exerciseSession.findFirst({

@@ -2,10 +2,10 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { prisma } from "../prisma/client.prisma.js";
 import {
-	createWorkoutSchema,
-	patchWorkoutBodySchema,
-	patchWorkoutSchema,
-	workoutParamsSchema,
+	createSchema,
+	idSchema,
+	patchBodySchema,
+	patchSchema,
 } from "../schemas/workout.schemas.js";
 import { AppError } from "../utils/AppError.utils.js";
 
@@ -14,7 +14,7 @@ const router = Router();
 router.post("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { name } = createWorkoutSchema.parse(req.body);
+	const { name } = createSchema.parse(req.body);
 	const userId = req.user.userId;
 
 	const workout = await prisma.$transaction(async (tx) => {
@@ -44,7 +44,7 @@ router.get("/", authMiddleware, async (req, res) => {
 router.get("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id: workoutId } = workoutParamsSchema.parse(req.params);
+	const { id: workoutId } = idSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const workout = await prisma.workout.findFirst({
@@ -62,7 +62,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
 router.delete("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id: workoutId } = workoutParamsSchema.parse(req.params);
+	const { id: workoutId } = idSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const deleted = await prisma.workout.deleteMany({ where: { id: workoutId, userId } });
@@ -74,11 +74,11 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 router.patch("/:id/:field", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id: workoutId } = workoutParamsSchema.parse(req.params);
-	const { field } = patchWorkoutSchema.parse(req.params);
+	const { id: workoutId } = idSchema.parse(req.params);
+	const { field } = patchSchema.parse(req.params);
 	const userId = req.user.userId;
 
-	const body = patchWorkoutBodySchema.parse({ field, ...req.body });
+	const body = patchBodySchema.parse({ field, ...req.body });
 	const value = body[field as keyof typeof body];
 
 	const updated = await prisma.workout.update({

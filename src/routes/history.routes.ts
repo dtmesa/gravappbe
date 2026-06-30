@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { prisma } from "../prisma/client.prisma.js";
 import { redis } from "../redis/client.redis.js";
-import { monthQuerySchema } from "../schemas/history.schemas.js";
+import { queryMonthSchema } from "../schemas/history.schemas.js";
 import { AppError } from "../utils/AppError.utils.js";
 
 const router = Router();
@@ -14,7 +14,7 @@ router.get("/sessions", authMiddleware, async (req, res) => {
 	const userId = req.user.userId;
 	const {
 		month: { rawMonth, start, end },
-	} = monthQuerySchema.parse(req.query);
+	} = queryMonthSchema.parse(req.query);
 
 	const cacheKey = `sessions:user:${userId}:month:${rawMonth}`;
 	const cached = await redis.get(cacheKey);

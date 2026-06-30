@@ -2,10 +2,10 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { prisma } from "../prisma/client.prisma.js";
 import {
-	patchSetSessionBodySchema,
-	patchSetSessionSchema,
-	setIDParamsSchema,
-	setSessionParamsSchema,
+	exerciseSessionIdSchema,
+	idParamsSchema,
+	patchBodySchema,
+	patchSchema,
 } from "../schemas/setSession.schemas.js";
 import { AppError } from "../utils/AppError.utils.js";
 
@@ -14,7 +14,7 @@ const router = Router({ mergeParams: true });
 router.post("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { exerciseSessionId } = setSessionParamsSchema.parse(req.params);
+	const { exerciseSessionId } = exerciseSessionIdSchema.parse(req.params);
 
 	const exerciseSession = await prisma.exerciseSession.findFirst({
 		where: {
@@ -43,7 +43,7 @@ router.post("/", authMiddleware, async (req, res) => {
 router.get("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { exerciseSessionId } = setSessionParamsSchema.parse(req.params);
+	const { exerciseSessionId } = exerciseSessionIdSchema.parse(req.params);
 
 	const sets = await prisma.setSession.findMany({
 		where: {
@@ -58,7 +58,7 @@ router.get("/", authMiddleware, async (req, res) => {
 router.get("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id } = setIDParamsSchema.parse(req.params);
+	const { id } = idParamsSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const set = await prisma.setSession.findFirst({
@@ -77,7 +77,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
 router.delete("/:id", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id } = setIDParamsSchema.parse(req.params);
+	const { id } = idParamsSchema.parse(req.params);
 	const userId = req.user.userId;
 
 	const deleted = await prisma.setSession.deleteMany({
@@ -94,11 +94,11 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 router.patch("/:id/:field", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-	const { id } = setIDParamsSchema.parse(req.params);
-	const { field } = patchSetSessionSchema.parse(req.params);
+	const { id } = idParamsSchema.parse(req.params);
+	const { field } = patchSchema.parse(req.params);
 	const userId = req.user.userId;
 
-	const body = patchSetSessionBodySchema.parse({ field, ...req.body });
+	const body = patchBodySchema.parse({ field, ...req.body });
 	const value = body[field as keyof typeof body];
 
 	const updated = await prisma.setSession.update({
