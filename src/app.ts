@@ -11,7 +11,13 @@ import workoutSessionRoutes from "./routes/workoutSession.routes.js";
 
 const app = express();
 
-const allowedOrigins = process.env.NODE_ENV === "production" ? ["https://placeholder.com"] : [true];
+const allowedOrigins =
+	process.env.NODE_ENV === "production"
+		? [process.env.CLIENT_ORIGIN as string]
+		: [true];
+
+if (process.env.NODE_ENV === "production" && !process.env.CLIENT_ORIGIN) 
+	throw new Error("CLIENT_ORIGIN must be set in production");
 
 app.use(
 	cors({
