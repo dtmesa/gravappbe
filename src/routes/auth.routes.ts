@@ -25,20 +25,15 @@ router.get("/me", authMiddleware, async (req, res) => {
 });
 
 router.post("/register", async (req, res) => {
-	console.log("Login request received");
-
 	const { username, password } = registerSchema.parse(req.body);
-	console.log("Request parsed");
 
 	try {
 		await registerLimiter.consume(req.ip ?? "unknown");
-		console.log("Rate limiter passed");
 	} catch {
 		throw new AppError("Too many registration attempts", 429, "RATE_LIMITED");
 	}
 
 	const hashed = await bcrypt.hash(password, 12);
-	console.log("Password hashed");
 
 	const user = await prisma.user.create({
 		data: { username, password: hashed },
@@ -47,46 +42,32 @@ router.post("/register", async (req, res) => {
 			username: true,
 		},
 	});
-	console.log("Prisma query complete");
 
 	await registerLimiter.delete(req.ip ?? "unknown");
-	console.log("Limiter reset");
 
 	res.status(201).json(user);
-	console.log("Response sent");
 });
 
 router.post("/login", async (req, res) => {
-	console.log("DATABASE_URL:", process.env.DATABASE_URL);
-	console.log("Login request received");
 	const { username, password } = loginSchema.parse(req.body);
-	console.log("Request parsed");
 
 	try {
-		console.log("Rate limiter attempt");
 		await loginLimiter.consume(req.ip ?? "unknown");
-		console.log("Rate limiter passed");
 	} catch {
 		throw new AppError("Too many login attempts", 429, "RATE_LIMITED");
 	}
 
-	console.log("Prisma query attempt");
 	const user = await prisma.user.findUnique({ where: { username } });
 	if (!user) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
-	console.log("Prisma query complete");
 
 	const same = await bcrypt.compare(password, user.password);
 	if (!same) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
-	console.log("Password compared");
 
 	await loginLimiter.delete(req.ip ?? "unknown");
-	console.log("Limiter reset");
 
 	const token = signToken(user.id);
-	console.log("Token created");
 
 	res.json({ token });
-	console.log("Response sent");
 });
 
 router.patch("/username", authMiddleware, async (req, res) => {
