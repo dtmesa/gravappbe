@@ -62,6 +62,7 @@ router.post("/login", async (req, res) => {
 	console.log("Request parsed");
 
 	try {
+		console.log("Rate limiter attemp");
 		await loginLimiter.consume(req.ip ?? "unknown");
 		console.log("Rate limiter passed");
 	} catch {
