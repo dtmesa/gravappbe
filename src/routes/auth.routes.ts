@@ -61,15 +61,15 @@ router.post("/login", async (req, res) => {
 	const { username, password } = loginSchema.parse(req.body);
 	console.log("Request parsed");
 
-	// try {
-	// 	console.log("Rate limiter attemp");
-	// 	await loginLimiter.consume(req.ip ?? "unknown");
-	// 	console.log("Rate limiter passed");
-	// } catch {
-	// 	throw new AppError("Too many login attempts", 429, "RATE_LIMITED");
-	// }
+	try {
+		console.log("Rate limiter attempt");
+		await loginLimiter.consume(req.ip ?? "unknown");
+		console.log("Rate limiter passed");
+	} catch {
+		throw new AppError("Too many login attempts", 429, "RATE_LIMITED");
+	}
 
-	console.log("Prisma query start");
+	console.log("Prisma query attempt");
 	const user = await prisma.user.findUnique({ where: { username } });
 	if (!user) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
 	console.log("Prisma query complete");
