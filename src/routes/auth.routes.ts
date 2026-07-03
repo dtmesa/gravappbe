@@ -57,6 +57,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
+	console.log("DATABASE_URL:", process.env.DATABASE_URL);
 	console.log("Login request received");
 	const { username, password } = loginSchema.parse(req.body);
 	console.log("Request parsed");
