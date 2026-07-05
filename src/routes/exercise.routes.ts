@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { prisma } from "../prisma/client.prisma.js";
-import { redis } from "../redis/client.redis.js";
+// import { redis } from "../redis/client.redis.js";
 import {
 	createSchema,
 	excludeIdSchema,
@@ -18,7 +18,7 @@ import {
 } from "../utils/exercise.utils.js";
 
 const router = Router({ mergeParams: true });
-const CACHE_TTL = 60 * 15;
+// const CACHE_TTL = 60 * 15;
 
 router.post("/", authMiddleware, async (req, res) => {
 	if (!req.user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
@@ -119,9 +119,9 @@ router.get("/:id/averages", authMiddleware, async (req, res) => {
 
 	const exercise = await assertExerciseAccess(exerciseId, userId);
 
-	const cacheKey = `averages:weekly:${exerciseId}:exclude:${excludeSessionId ?? "none"}`;
-	const cached = await redis.get(cacheKey);
-	if (cached) return res.json(JSON.parse(cached));
+	// const cacheKey = `averages:weekly:${exerciseId}:exclude:${excludeSessionId ?? "none"}`;
+	// const cached = await redis.get(cacheKey);
+	// if (cached) return res.json(JSON.parse(cached));
 
 	const oneWeekAgo = new Date();
 	oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -148,7 +148,7 @@ router.get("/:id/averages", authMiddleware, async (req, res) => {
 	});
 	const result = calculateAverages(recentSessions, exercise);
 
-	await redis.set(cacheKey, JSON.stringify(result), "EX", CACHE_TTL);
+	// await redis.set(cacheKey, JSON.stringify(result), "EX", CACHE_TTL);
 	return res.json(result);
 });
 
@@ -163,9 +163,9 @@ router.get("/:id/averages/all", authMiddleware, async (req, res) => {
 
 	const exercise = await assertExerciseAccess(exerciseId, userId);
 
-	const cacheKey = `averages:all:${exerciseId}:exclude:${excludeSessionId ?? "none"}`;
-	const cached = await redis.get(cacheKey);
-	if (cached) return res.json(JSON.parse(cached));
+	// const cacheKey = `averages:all:${exerciseId}:exclude:${excludeSessionId ?? "none"}`;
+	// const cached = await redis.get(cacheKey);
+	// if (cached) return res.json(JSON.parse(cached));
 
 	const pastSessions = await prisma.exerciseSession.findMany({
 		where: {
@@ -188,7 +188,7 @@ router.get("/:id/averages/all", authMiddleware, async (req, res) => {
 	});
 	const result = calculateAverages(pastSessions, exercise);
 
-	await redis.set(cacheKey, JSON.stringify(result), "EX", CACHE_TTL);
+	// await redis.set(cacheKey, JSON.stringify(result), "EX", CACHE_TTL);
 	return res.json(result);
 });
 

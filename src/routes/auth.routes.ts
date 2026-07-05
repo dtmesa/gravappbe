@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { prisma } from "../prisma/client.prisma.js";
-import { loginLimiter, passwordLimiter, registerLimiter } from "../redis/rateLimiter.redis.js";
+// import { loginLimiter, passwordLimiter, registerLimiter } from "../redis/rateLimiter.redis.js";
 import {
 	deleteAccountSchema,
 	loginSchema,
@@ -27,11 +27,11 @@ router.get("/me", authMiddleware, async (req, res) => {
 router.post("/register", async (req, res) => {
 	const { username, password } = registerSchema.parse(req.body);
 
-	try {
-		await registerLimiter.consume(req.ip ?? "unknown");
-	} catch {
-		throw new AppError("Too many registration attempts", 429, "RATE_LIMITED");
-	}
+	// try {
+	// 	await registerLimiter.consume(req.ip ?? "unknown");
+	// } catch {
+	// 	throw new AppError("Too many registration attempts", 429, "RATE_LIMITED");
+	// }
 
 	const hashed = await bcrypt.hash(password, 12);
 
@@ -43,7 +43,7 @@ router.post("/register", async (req, res) => {
 		},
 	});
 
-	await registerLimiter.delete(req.ip ?? "unknown");
+	// await registerLimiter.delete(req.ip ?? "unknown");
 
 	res.status(201).json(user);
 });
@@ -51,11 +51,11 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
 	const { username, password } = loginSchema.parse(req.body);
 
-	try {
-		await loginLimiter.consume(req.ip ?? "unknown");
-	} catch {
-		throw new AppError("Too many login attempts", 429, "RATE_LIMITED");
-	}
+	// try {
+	// 	await loginLimiter.consume(req.ip ?? "unknown");
+	// } catch {
+	// 	throw new AppError("Too many login attempts", 429, "RATE_LIMITED");
+	// }
 
 	const user = await prisma.user.findUnique({ where: { username } });
 	if (!user) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
@@ -63,7 +63,7 @@ router.post("/login", async (req, res) => {
 	const same = await bcrypt.compare(password, user.password);
 	if (!same) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
 
-	await loginLimiter.delete(req.ip ?? "unknown");
+	// await loginLimiter.delete(req.ip ?? "unknown");
 
 	const token = signToken(user.id);
 
@@ -101,11 +101,11 @@ router.patch("/password", authMiddleware, async (req, res) => {
 	const { currentPassword, newPassword } = updatePasswordSchema.parse(req.body);
 	const userId = req.user.userId;
 
-	try {
-		await passwordLimiter.consume(userId.toString());
-	} catch {
-		throw new AppError("Too many attempts", 429, "RATE_LIMITED");
-	}
+	// try {
+	// 	await passwordLimiter.consume(userId.toString());
+	// } catch {
+	// 	throw new AppError("Too many attempts", 429, "RATE_LIMITED");
+	// }
 
 	const user = await prisma.user.findUnique({
 		where: { id: userId },
@@ -127,7 +127,7 @@ router.patch("/password", authMiddleware, async (req, res) => {
 		data: { password: hashed },
 	});
 
-	await passwordLimiter.delete(userId.toString());
+	// await passwordLimiter.delete(userId.toString());
 
 	res.sendStatus(204);
 });

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { prisma } from "../prisma/client.prisma.js";
-import { redis } from "../redis/client.redis.js";
+// import { redis } from "../redis/client.redis.js";
 import {
 	dateSchema,
 	idSchema,
@@ -33,8 +33,8 @@ router.post("/", authMiddleware, async (req, res) => {
 		include: { workout: true },
 	});
 
-	const month = new Date(session.date).toISOString().slice(0, 7);
-	await redis.del(`sessions:user:${userId}:month:${month}`);
+	// const month = new Date(session.date).toISOString().slice(0, 7);
+	// await redis.del(`sessions:user:${userId}:month:${month}`);
 
 	res.status(201).json(session);
 });
@@ -68,8 +68,8 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 
 	await prisma.workoutSession.delete({ where: { id: sessionId } });
 
-	const month = new Date(session.date).toISOString().slice(0, 7);
-	await redis.del(`sessions:user:${userId}:month:${month}`);
+	// const month = new Date(session.date).toISOString().slice(0, 7);
+	// await redis.del(`sessions:user:${userId}:month:${month}`);
 
 	res.sendStatus(204);
 });
@@ -95,13 +95,13 @@ router.patch("/:id/:field", authMiddleware, async (req, res) => {
 		data: { [field]: value },
 	});
 
-	const oldMonth = new Date(existing.date).toISOString().slice(0, 7);
-	const newMonth = new Date(updated.date).toISOString().slice(0, 7);
+	// const oldMonth = new Date(existing.date).toISOString().slice(0, 7);
+	// const newMonth = new Date(updated.date).toISOString().slice(0, 7);
 
-	await redis.del(`sessions:user:${userId}:month:${oldMonth}`);
-	if (newMonth !== oldMonth) {
-		await redis.del(`sessions:user:${userId}:month:${newMonth}`);
-	}
+	// await redis.del(`sessions:user:${userId}:month:${oldMonth}`);
+	// if (newMonth !== oldMonth) {
+	// 	await redis.del(`sessions:user:${userId}:month:${newMonth}`);
+	// }
 
 	res.json(updated);
 });
