@@ -8,6 +8,7 @@ import historyRoutes from "./routes/history.routes.js";
 import setSessionRoutes from "./routes/setSession.routes.js";
 import workoutRoutes from "./routes/workout.routes.js";
 import workoutSessionRoutes from "./routes/workoutSession.routes.js";
+import { AppError } from "./utils/AppError.utils.js";
 
 const app = express();
 
@@ -16,6 +17,8 @@ const allowedOrigins =
 
 if (process.env.NODE_ENV === "production" && !process.env.CLIENT_ORIGIN)
 	throw new Error("CLIENT_ORIGIN must be set in production");
+
+if (!process.env.DATABASE_URL) throw new AppError("Missing database URL", 500, "MISSING_DB_URL");
 
 app.use(
 	cors({
