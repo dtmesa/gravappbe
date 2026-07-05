@@ -49,6 +49,8 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
+	console.log(process.env.DATABASE_URL);
+	console.log("Login attempt. Parsing inputs.")
 	const { username, password } = loginSchema.parse(req.body);
 
 	// try {
@@ -56,17 +58,17 @@ router.post("/login", async (req, res) => {
 	// } catch {
 	// 	throw new AppError("Too many login attempts", 429, "RATE_LIMITED");
 	// }
-
+	console.log("Finding user in database.")
 	const user = await prisma.user.findUnique({ where: { username } });
 	if (!user) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
-
+	console.log("Verifying password.")	
 	const same = await bcrypt.compare(password, user.password);
 	if (!same) throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
 
 	// await loginLimiter.delete(req.ip ?? "unknown");
-
+	console.log("Signing token.")	
 	const token = signToken(user.id);
-
+	console.log("Returning result.")	
 	res.json({ token });
 });
 
