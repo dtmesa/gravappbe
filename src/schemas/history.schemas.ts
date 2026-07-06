@@ -7,7 +7,6 @@ export const queryMonthSchema = z.object({
 		.transform((val) => {
 			const [year, month] = val.split("-").map(Number) as [number, number];
 			return {
-				rawMonth: val,
 				start: new Date(year, month - 1, 1),
 				end: new Date(year, month, 1),
 			};
