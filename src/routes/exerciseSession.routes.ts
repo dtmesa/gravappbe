@@ -28,7 +28,10 @@ router.post("/", authMiddleware, async (req, res) => {
 	});
 	if (!exercise) throw new AppError("Exercise not found", 404, "EXERCISE_NOT_FOUND");
 
-	const session = await prisma.exerciseSession.create({ data: { workoutSessionId, exerciseId } });
+	const session = await prisma.exerciseSession.create({
+		data: { workoutSessionId, exerciseId },
+		include: { sets: true },
+	});
 
 	res.status(201).json(session);
 });
@@ -45,6 +48,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
 			workoutSessionId,
 			workoutSession: { userId },
 		},
+		include: { sets: true },
 	});
 	if (!session) throw new AppError("Exercise session not found", 404, "EXERCISESESSION_NOT_FOUND");
 
