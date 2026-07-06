@@ -62,6 +62,7 @@ router.get("/", authMiddleware, async (req, res) => {
 			workoutSessionId,
 			workoutSession: { userId },
 		},
+		include: { sets: true },
 	});
 
 	res.json(sessions);
