@@ -31,7 +31,7 @@ Backend for cross-platform fitness tracking application built with Express, Type
 - Biome
 
 ## Demo Video
-https://github.com/user-attachments/assets/edb31c91-a186-4c9d-a52e-fab4f2ac85cb
+https://github.com/user-attachments/assets/e7e51932-2f57-41d0-beb9-382045126062
 
 ## Plans
 
