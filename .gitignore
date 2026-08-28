@@ -3,3 +3,12 @@ node_modules
 .vscode
 
 /generated/prisma
+
+# .NET
+bin/
+obj/
+*.user
+.aws-sam/
+
+# DynamoDB Local
+.dynamodb/
