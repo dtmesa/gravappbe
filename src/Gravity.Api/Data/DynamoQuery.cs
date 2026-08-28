@@ -54,6 +54,39 @@ public static class DynamoQuery
 		}
 	}
 
+	/// <summary>
+	/// Fetches many items by key in 100-key batches, retrying unprocessed keys.
+	/// Used to resolve workout and exercise names for the history response
+	/// without denormalizing them onto every session.
+	/// </summary>
+	public static async Task<List<Item>> BatchGetAsync(this IAmazonDynamoDB db, string table, List<Item> keys, CancellationToken ct = default)
+	{
+		var results = new List<Item>();
+
+		foreach (var chunk in keys.Chunk(100))
+		{
+			var pending = new Dictionary<string, KeysAndAttributes>
+			{
+				[table] = new() { Keys = chunk.ToList() },
+			};
+
+			for (var attempt = 0; attempt < 5 && pending.Count > 0; attempt++)
+			{
+				var response = await db.BatchGetItemAsync(new BatchGetItemRequest { RequestItems = pending }, ct);
+
+				if (response.Responses.TryGetValue(table, out var items)) results.AddRange(items);
+
+				pending = response.UnprocessedKeys?
+					.Where(kv => kv.Value.Keys.Count > 0)
+					.ToDictionary(kv => kv.Key, kv => kv.Value) ?? [];
+
+				if (pending.Count > 0) await Task.Delay(50 * (attempt + 1), ct);
+			}
+		}
+
+		return results;
+	}
+
 	public static Item Key(string partitionName, int partitionValue, string sortName, int sortValue) => new()
 	{
 		[partitionName] = Dyn.N(partitionValue),

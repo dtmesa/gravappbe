@@ -37,6 +37,11 @@ builder.Services.AddSingleton<IAmazonDynamoDB>(_ =>
 builder.Services.AddSingleton<IdGenerator>();
 builder.Services.AddSingleton(new JwtService(jwtSecret));
 builder.Services.AddSingleton<UserRepository>();
+builder.Services.AddSingleton<WorkoutRepository>();
+builder.Services.AddSingleton<ExerciseRepository>();
+builder.Services.AddSingleton<WorkoutSessionRepository>();
+builder.Services.AddSingleton<ExerciseSessionRepository>();
+builder.Services.AddSingleton<SetSessionRepository>();
 builder.Services.AddSingleton<CascadeService>();
 
 builder.Services
@@ -98,7 +103,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { status = "ok" }));
+
+// Mounted to match the paths src/app.ts registered.
 app.MapAuthEndpoints();
+app.MapHistoryEndpoints();
+app.MapWorkoutEndpoints();
+app.MapExerciseEndpoints();
+app.MapWorkoutSessionEndpoints();
+app.MapExerciseSessionEndpoints();
+app.MapSetSessionEndpoints();
 
 // Local development against DynamoDB Local provisions its own tables; deployed
 // environments get them from template.yaml.
