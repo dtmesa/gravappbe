@@ -1,0 +1,209 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Gravity fitness tracker API - ASP.NET Core Minimal API on Lambda with DynamoDB
+
+Parameters:
+  TablePrefix:
+    Type: String
+    Default: Gravity_
+    Description: Prefix applied to every table name.
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Description: HS256 signing secret. Must match the previous backend's JWT_SECRET, or tokens already stored on devices stop working.
+  ClientOrigin:
+    Type: String
+    Default: ""
+    Description: Allowed CORS origin. Required when Environment is production.
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [production, development]
+
+Globals:
+  Function:
+    Runtime: dotnet8
+    MemorySize: 1024
+    Timeout: 30
+    Architectures: [x86_64]
+
+Resources:
+  GravityApi:
+    Type: AWS::Serverless::Function
+    Properties:
+      # AddAWSLambdaHosting bootstraps the whole ASP.NET pipeline, so the
+      # handler is just the assembly name.
+      Handler: Gravity.Api
+      CodeUri: src/Gravity.Api/
+      Environment:
+        Variables:
+          TABLE_PREFIX: !Ref TablePrefix
+          JWT_SECRET: !Ref JwtSecret
+          CLIENT_ORIGIN: !Ref ClientOrigin
+          NODE_ENV: !Ref Environment
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:BatchGetItem
+                - dynamodb:Query
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:BatchWriteItem
+                - dynamodb:TransactWriteItems
+              Resource:
+                - !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}*
+                - !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}*/index/*
+      Events:
+        # One catch-all route; the ASP.NET router does the dispatching.
+        Proxy:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        Root:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: ANY
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}Users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: id, AttributeType: N}
+      KeySchema:
+        - {AttributeName: id, KeyType: HASH}
+
+  # Lookup table enforcing username uniqueness via a conditional write inside
+  # the same transaction that creates or renames the user.
+  UsernamesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}Usernames
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: username, AttributeType: S}
+      KeySchema:
+        - {AttributeName: username, KeyType: HASH}
+
+  # Atomic counters standing in for Postgres autoincrement.
+  CountersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}Counters
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: entity, AttributeType: S}
+      KeySchema:
+        - {AttributeName: entity, KeyType: HASH}
+
+  WorkoutsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}Workouts
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: userId, AttributeType: N}
+        - {AttributeName: id, AttributeType: N}
+        - {AttributeName: order, AttributeType: N}
+      KeySchema:
+        - {AttributeName: userId, KeyType: HASH}
+        - {AttributeName: id, KeyType: RANGE}
+      LocalSecondaryIndexes:
+        - IndexName: order-index
+          KeySchema:
+            - {AttributeName: userId, KeyType: HASH}
+            - {AttributeName: order, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+
+  ExercisesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}Exercises
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: workoutId, AttributeType: N}
+        - {AttributeName: id, AttributeType: N}
+        - {AttributeName: order, AttributeType: N}
+      KeySchema:
+        - {AttributeName: workoutId, KeyType: HASH}
+        - {AttributeName: id, KeyType: RANGE}
+      LocalSecondaryIndexes:
+        - IndexName: order-index
+          KeySchema:
+            - {AttributeName: workoutId, KeyType: HASH}
+            - {AttributeName: order, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+
+  WorkoutSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}WorkoutSessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: userId, AttributeType: N}
+        - {AttributeName: id, AttributeType: N}
+        - {AttributeName: date, AttributeType: S}
+        - {AttributeName: workoutId, AttributeType: N}
+      KeySchema:
+        - {AttributeName: userId, KeyType: HASH}
+        - {AttributeName: id, KeyType: RANGE}
+      LocalSecondaryIndexes:
+        # Serves the history calendar's month window.
+        - IndexName: date-index
+          KeySchema:
+            - {AttributeName: userId, KeyType: HASH}
+            - {AttributeName: date, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+      GlobalSecondaryIndexes:
+        # Used when cascading a workout delete down to its sessions.
+        - IndexName: workoutId-date-index
+          KeySchema:
+            - {AttributeName: workoutId, KeyType: HASH}
+            - {AttributeName: date, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+
+  ExerciseSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}ExerciseSessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: workoutSessionId, AttributeType: N}
+        - {AttributeName: id, AttributeType: N}
+        - {AttributeName: exerciseId, AttributeType: N}
+        - {AttributeName: sessionDate, AttributeType: S}
+      KeySchema:
+        - {AttributeName: workoutSessionId, KeyType: HASH}
+        - {AttributeName: id, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        # Backs /averages and /previous-set-count, which query across sessions
+        # by exercise. sessionDate is denormalized from the parent session.
+        - IndexName: exerciseId-sessionDate-index
+          KeySchema:
+            - {AttributeName: exerciseId, KeyType: HASH}
+            - {AttributeName: sessionDate, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+
+  SetSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}SetSessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: exerciseSessionId, AttributeType: N}
+        - {AttributeName: id, AttributeType: N}
+      KeySchema:
+        - {AttributeName: exerciseSessionId, KeyType: HASH}
+        # id as the sort key gives the `orderBy: { id: "asc" }` the sets list needs.
+        - {AttributeName: id, KeyType: RANGE}
+
+Outputs:
+  ApiUrl:
+    Description: Base URL to put in workout-app/.env as EXPO_PUBLIC_API_URL
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
