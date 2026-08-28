@@ -42,8 +42,8 @@ public class WorkoutSessionRepository
 			Id = await _ids.NextAsync(IdGenerator.Entities.WorkoutSession, ct),
 			UserId = userId,
 			WorkoutId = workoutId,
-			Date = date?.ToUniversalTime() ?? DateTime.UtcNow,
-			CreatedAt = DateTime.UtcNow,
+			Date = date.HasValue ? Clock.Truncate(date.Value) : Clock.UtcNow(),
+			CreatedAt = Clock.UtcNow(),
 		};
 
 		await _db.PutItemAsync(new PutItemRequest

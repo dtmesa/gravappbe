@@ -64,7 +64,7 @@ public class SetSessionRepository
 			Reps = exercise.IsReps ? 0 : null,
 			Duration = exercise.IsDuration ? 0 : null,
 			Distance = exercise.IsDistance ? 0 : null,
-			CreatedAt = DateTime.UtcNow,
+			CreatedAt = Clock.UtcNow(),
 		};
 
 		await _db.PutItemAsync(new PutItemRequest

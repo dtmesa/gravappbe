@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Amazon.DynamoDBv2.Model;
-using FluentValidation;
+using Gravity.Api.Common;
 using Gravity.Api.Data;
 
 namespace Gravity.Api.Validation;
@@ -16,7 +16,7 @@ public static class Patch
 	private static JsonElement Property(JsonElement body, string field)
 	{
 		if (body.ValueKind != JsonValueKind.Object || !body.TryGetProperty(field, out var value))
-			throw new ValidationException($"Missing value for field '{field}'");
+			throw Validate.Invalid(field, $"Missing value for field '{field}'");
 
 		return value;
 	}
@@ -26,12 +26,12 @@ public static class Patch
 		var value = Property(body, field);
 
 		if (value.ValueKind != JsonValueKind.String)
-			throw new ValidationException($"'{field}' must be a string");
+			throw Validate.Invalid(field, $"'{field}' must be a string");
 
 		var text = value.GetString()!;
 
 		if (text.Length > maxLength)
-			throw new ValidationException($"'{field}' must be at most {maxLength} characters");
+			throw Validate.Invalid(field, $"'{field}' must be at most {maxLength} characters");
 
 		return Dyn.S(text);
 	}
@@ -43,10 +43,10 @@ public static class Patch
 		var text = attribute.S;
 
 		if (text.Length < 1)
-			throw new ValidationException($"'{field}' must not be empty");
+			throw Validate.Invalid(field, $"'{field}' must not be empty");
 
 		if (text != text.Trim())
-			throw new ValidationException("Name cannot start or end with spaces");
+			throw Validate.Invalid(field, "Name cannot start or end with spaces");
 
 		return attribute;
 	}
@@ -56,10 +56,10 @@ public static class Patch
 		var value = Property(body, field);
 
 		if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var number))
-			throw new ValidationException($"'{field}' must be an integer");
+			throw Validate.Invalid(field, $"'{field}' must be an integer");
 
 		if (number < minimum)
-			throw new ValidationException($"'{field}' must be at least {minimum}");
+			throw Validate.Invalid(field, $"'{field}' must be at least {minimum}");
 
 		return Dyn.N(number);
 	}
@@ -69,12 +69,12 @@ public static class Patch
 		var value = Property(body, field);
 
 		if (value.ValueKind != JsonValueKind.Number)
-			throw new ValidationException($"'{field}' must be a number");
+			throw Validate.Invalid(field, $"'{field}' must be a number");
 
 		var number = value.GetDouble();
 
 		if (number < minimum)
-			throw new ValidationException($"'{field}' must be at least {minimum}");
+			throw Validate.Invalid(field, $"'{field}' must be at least {minimum}");
 
 		return Dyn.N(number);
 	}
@@ -84,7 +84,7 @@ public static class Patch
 		var value = Property(body, field);
 
 		if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-			throw new ValidationException($"'{field}' must be a boolean");
+			throw Validate.Invalid(field, $"'{field}' must be a boolean");
 
 		return Dyn.Bool(value.GetBoolean());
 	}
@@ -94,9 +94,9 @@ public static class Patch
 		var value = Property(body, field);
 
 		if (value.ValueKind != JsonValueKind.String || !value.TryGetDateTime(out var date))
-			throw new ValidationException($"'{field}' must be a date");
+			throw Validate.Invalid(field, $"'{field}' must be a date");
 
-		return date.ToUniversalTime();
+		return Clock.Truncate(date);
 	}
 
 	// --- Per-entity allowlists, mirroring ALLOWED_FIELDS in src/schemas/ ---
@@ -106,7 +106,7 @@ public static class Patch
 		"order" => Integer(body, field, 0),
 		"description" => Text(body, field, 500),
 		"name" => Name(body, field),
-		_ => throw new ValidationException($"Unsupported field '{field}'"),
+		_ => throw Validate.Invalid(field, $"Unsupported field '{field}'"),
 	};
 
 	public static AttributeValue ForExercise(string field, JsonElement body) => field switch
@@ -115,7 +115,7 @@ public static class Patch
 		"order" => Integer(body, field, 0),
 		"name" => Name(body, field),
 		"isWeight" or "isDuration" or "isReps" or "isDistance" => Flag(body, field),
-		_ => throw new ValidationException($"Unsupported field '{field}'"),
+		_ => throw Validate.Invalid(field, $"Unsupported field '{field}'"),
 	};
 
 	/// <summary>
@@ -130,6 +130,6 @@ public static class Patch
 		"duration" => Integer(body, field, 0),
 		"weight" => Decimal(body, field, 0),
 		"distance" => Decimal(body, field, 0),
-		_ => throw new ValidationException($"Unsupported field '{field}'"),
+		_ => throw Validate.Invalid(field, $"Unsupported field '{field}'"),
 	};
 }

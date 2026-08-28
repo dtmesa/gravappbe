@@ -61,7 +61,7 @@ public class ExerciseSessionRepository
 			Order = 0,
 			WorkoutSessionId = session.Id,
 			ExerciseId = exerciseId,
-			CreatedAt = DateTime.UtcNow,
+			CreatedAt = Clock.UtcNow(),
 			UserId = session.UserId,
 			WorkoutId = session.WorkoutId,
 			SessionDate = session.Date,

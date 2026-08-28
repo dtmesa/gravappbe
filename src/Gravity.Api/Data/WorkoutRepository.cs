@@ -78,7 +78,7 @@ public class WorkoutRepository
 			Name = name,
 			UserId = userId,
 			Order = 0,
-			CreatedAt = DateTime.UtcNow,
+			CreatedAt = Clock.UtcNow(),
 		};
 
 		var actions = existing.Select(item => new TransactWriteItem

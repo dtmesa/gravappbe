@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using Gravity.Api.Common;
 using Gravity.Api.Models;
 
@@ -102,18 +103,25 @@ public static class Validate
 	public static CreateExerciseSessionRequest Check(CreateExerciseSessionRequest r) { CreateExerciseSession.ValidateAndThrow(r); return r; }
 
 	/// <summary>
+	/// Builds an exception carrying a real failure, so the `issues` array in the
+	/// 400 response is populated the way Zod's issues were rather than empty.
+	/// </summary>
+	public static ValidationException Invalid(string property, string message) =>
+		new([new ValidationFailure(property, message)]);
+
+	/// <summary>
 	/// Route ids were `z.coerce.number().int().positive()`. Route constraints
 	/// already reject non-numeric segments; this enforces the positive bound.
 	/// </summary>
 	public static int PositiveId(int value, string name)
 	{
 		if (value <= 0)
-			throw new ValidationException($"{name} must be a positive integer");
+			throw Invalid(name, $"{name} must be a positive integer");
 
 		return value;
 	}
 
 	/// <summary>Body must be present at all -- Express got `{}` from express.json().</summary>
 	public static T Required<T>(T? body) where T : class =>
-		body ?? throw new ValidationException("Request body is required");
+		body ?? throw Invalid("body", "Request body is required");
 }

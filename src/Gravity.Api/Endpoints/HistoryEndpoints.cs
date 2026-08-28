@@ -104,7 +104,7 @@ public static partial class HistoryEndpoints
 	private static (DateTime Start, DateTime End) ParseMonth(string? month)
 	{
 		if (month is null || !MonthPattern().IsMatch(month))
-			throw new ValidationException("month must be formatted YYYY-MM");
+			throw Validation.Validate.Invalid("month", "month must be formatted YYYY-MM");
 
 		var year = int.Parse(month[..4], CultureInfo.InvariantCulture);
 		var monthNumber = int.Parse(month[5..], CultureInfo.InvariantCulture);

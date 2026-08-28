@@ -56,7 +56,7 @@ public class UserRepository
 			Id = await _ids.NextAsync(IdGenerator.Entities.User, ct),
 			Username = username,
 			Password = hashedPassword,
-			CreatedAt = DateTime.UtcNow,
+			CreatedAt = Clock.UtcNow(),
 		};
 
 		await ExecuteUsernameTransactionAsync([

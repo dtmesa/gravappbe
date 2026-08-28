@@ -85,7 +85,7 @@ public static class WorkoutSessionEndpoints
 
 			// "date" is the only patchable field on a session.
 			if (field != "date")
-				throw new FluentValidation.ValidationException($"Unsupported field '{field}'");
+				throw Validate.Invalid(field, $"Unsupported field '{field}'");
 
 			// The Zod schema made `date` optional and the handler then rejected a
 			// missing value with INVALID_BODY rather than VALIDATION_ERROR.

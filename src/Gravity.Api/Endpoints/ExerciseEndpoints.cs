@@ -143,7 +143,7 @@ public static class ExerciseEndpoints
 
 		// excludeIdSchema made this query param required, not optional.
 		if (excludeSessionId is not > 0)
-			throw new ValidationException("excludeSessionId must be a positive integer");
+			throw Validate.Invalid("excludeSessionId", "excludeSessionId must be a positive integer");
 
 		var userId = principal.UserId();
 

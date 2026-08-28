@@ -34,6 +34,11 @@ builder.Services.AddSingleton<IAmazonDynamoDB>(_ =>
 	return new AmazonDynamoDBClient("local", "local", new AmazonDynamoDBConfig { ServiceURL = endpoint });
 });
 
+// camelCase and explicit nulls are the defaults here and match Prisma's output;
+// only the date format needs overriding.
+builder.Services.ConfigureHttpJsonOptions(options =>
+	options.SerializerOptions.Converters.Add(new JsonDateTimeConverter()));
+
 builder.Services.AddSingleton<IdGenerator>();
 builder.Services.AddSingleton(new JwtService(jwtSecret));
 builder.Services.AddSingleton<UserRepository>();

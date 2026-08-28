@@ -81,7 +81,7 @@ public class ExerciseRepository
 			Name = name,
 			WorkoutId = workoutId,
 			Order = highest + 1,
-			CreatedAt = DateTime.UtcNow,
+			CreatedAt = Clock.UtcNow(),
 		};
 
 		await _db.PutItemAsync(new PutItemRequest
