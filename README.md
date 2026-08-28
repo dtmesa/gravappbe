@@ -36,12 +36,17 @@ on startup whenever `DYNAMODB_ENDPOINT` is set:
 docker run -d --name gravity-dynamodb -p 8000:8000 amazon/dynamodb-local
 ```
 
+Then, from this directory (`dotnet run` on its own fails here — the repo root
+holds `Gravity.sln`, not a project file):
+
 ```bash
-dotnet run --project src/Gravity.Api --urls "http://0.0.0.0:3000"
+dotnet run --project src/Gravity.Api
 ```
 
-Binding `0.0.0.0` lets a physical device on the same network reach the API — point
-`EXPO_PUBLIC_API_URL` in the frontend at `http://<your-lan-ip>:3000`.
+It listens on `0.0.0.0:3000`, so a physical device on the same network can reach
+it — point `EXPO_PUBLIC_API_URL` in the frontend at `http://<your-lan-ip>:3000`.
+Use the `localhost` launch profile (`--launch-profile localhost`) to bind
+loopback only.
 
 Configuration comes from `.env` (see `JWT_SECRET`, `DYNAMODB_ENDPOINT`,
 `AWS_REGION`, `CLIENT_ORIGIN`). Setting `NODE_ENV=production` pins CORS to
