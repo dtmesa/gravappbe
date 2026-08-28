@@ -3,6 +3,7 @@ using Amazon.DynamoDBv2;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Gravity.Api.Common;
 using Gravity.Api.Data;
+using Gravity.Api.Endpoints;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -35,6 +36,8 @@ builder.Services.AddSingleton<IAmazonDynamoDB>(_ =>
 
 builder.Services.AddSingleton<IdGenerator>();
 builder.Services.AddSingleton(new JwtService(jwtSecret));
+builder.Services.AddSingleton<UserRepository>();
+builder.Services.AddSingleton<CascadeService>();
 
 builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -95,5 +98,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Ok(new { status = "ok" }));
+app.MapAuthEndpoints();
+
+// Local development against DynamoDB Local provisions its own tables; deployed
+// environments get them from template.yaml.
+if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DYNAMODB_ENDPOINT")))
+{
+	await LocalTables.EnsureCreatedAsync(
+		app.Services.GetRequiredService<IAmazonDynamoDB>(),
+		app.Services.GetRequiredService<ILogger<Program>>());
+}
 
 app.Run();
