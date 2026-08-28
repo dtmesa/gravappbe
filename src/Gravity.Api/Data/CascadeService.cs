@@ -84,10 +84,32 @@ public class CascadeService
 		await DeleteSetsAsync(exerciseSessions.Select(e => e.GetInt("id")), ct);
 		await _db.DeleteAllAsync(Tables.ExerciseSessions, exerciseSessions, ct);
 
+		await ReleaseExerciseNameAsync(workoutId, exerciseId, ct);
+
 		await _db.DeleteItemAsync(new DeleteItemRequest
 		{
 			TableName = Tables.Exercises,
 			Key = DynamoQuery.Key("workoutId", workoutId, "id", exerciseId),
+		}, ct);
+	}
+
+	/// <summary>Frees the exercise's claimed name so a new exercise can reuse it.</summary>
+	private async Task ReleaseExerciseNameAsync(int workoutId, int exerciseId, CancellationToken ct)
+	{
+		var response = await _db.GetItemAsync(new GetItemRequest
+		{
+			TableName = Tables.Exercises,
+			Key = DynamoQuery.Key("workoutId", workoutId, "id", exerciseId),
+			ProjectionExpression = "#n",
+			ExpressionAttributeNames = new Dictionary<string, string> { ["#n"] = "name" },
+		}, ct);
+
+		if (!response.IsItemSet) return;
+
+		await _db.DeleteItemAsync(new DeleteItemRequest
+		{
+			TableName = Tables.ExerciseNames,
+			Key = new Item { ["workoutId"] = Dyn.N(workoutId), ["name"] = response.Item["name"] },
 		}, ct);
 	}
 
@@ -119,10 +141,32 @@ public class CascadeService
 		foreach (var exercise in exercises)
 			await DeleteExerciseAsync(workoutId, exercise.GetInt("id"), ct);
 
+		await ReleaseWorkoutNameAsync(userId, workoutId, ct);
+
 		await _db.DeleteItemAsync(new DeleteItemRequest
 		{
 			TableName = Tables.Workouts,
 			Key = DynamoQuery.Key("userId", userId, "id", workoutId),
+		}, ct);
+	}
+
+	/// <summary>Frees the workout's claimed name so a new workout can reuse it.</summary>
+	private async Task ReleaseWorkoutNameAsync(int userId, int workoutId, CancellationToken ct)
+	{
+		var response = await _db.GetItemAsync(new GetItemRequest
+		{
+			TableName = Tables.Workouts,
+			Key = DynamoQuery.Key("userId", userId, "id", workoutId),
+			ProjectionExpression = "#n",
+			ExpressionAttributeNames = new Dictionary<string, string> { ["#n"] = "name" },
+		}, ct);
+
+		if (!response.IsItemSet) return;
+
+		await _db.DeleteItemAsync(new DeleteItemRequest
+		{
+			TableName = Tables.WorkoutNames,
+			Key = new Item { ["userId"] = Dyn.N(userId), ["name"] = response.Item["name"] },
 		}, ct);
 	}
 

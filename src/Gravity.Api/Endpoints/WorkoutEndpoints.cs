@@ -69,8 +69,14 @@ public static class WorkoutEndpoints
 			Validate.PositiveId(id, "id");
 
 			var value = Patch.ForWorkout(field, body);
+			var userId = principal.UserId();
 
-			return Results.Ok(await workouts.UpdateFieldAsync(principal.UserId(), id, field, value, ct));
+			// Renaming has to release the old name claim and take the new one
+			// atomically, so it can't go through the generic single-field update.
+			if (field == "name")
+				return Results.Ok(await workouts.RenameAsync(userId, id, value.S!, ct));
+
+			return Results.Ok(await workouts.UpdateFieldAsync(userId, id, field, value, ct));
 		});
 	}
 }

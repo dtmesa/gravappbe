@@ -10,11 +10,16 @@ using Item = Dictionary<string, AttributeValue>;
 /// <summary>
 /// Workouts are partitioned by userId, so ownership checks are a plain GetItem
 /// rather than the `findFirst({ id, userId })` the Prisma version needed.
+///
+/// Name uniqueness per user, matching the Postgres @@unique([userId, name]), is
+/// enforced via a conditional put on WorkoutNames -- the same pattern
+/// UserRepository uses for usernames.
 /// </summary>
 public class WorkoutRepository
 {
-	// TransactWriteItems caps at 100 actions; the new workout consumes one.
-	private const int MaxReorderableWorkouts = 99;
+	// TransactWriteItems caps at 100 actions; a create consumes one per
+	// existing workout (order shift) plus the name claim plus the workout itself.
+	private const int MaxReorderableWorkouts = 98;
 
 	private readonly IAmazonDynamoDB _db;
 	private readonly IdGenerator _ids;
@@ -93,15 +98,92 @@ public class WorkoutRepository
 			},
 		}).ToList();
 
+		actions.Add(ClaimName(userId, name, workout.Id));
 		actions.Add(new TransactWriteItem
 		{
 			Put = new Put { TableName = Tables.Workouts, Item = workout.ToItem() },
 		});
 
-		await _db.TransactWriteItemsAsync(new TransactWriteItemsRequest { TransactItems = actions }, ct);
+		try
+		{
+			await _db.TransactWriteItemsAsync(new TransactWriteItemsRequest { TransactItems = actions }, ct);
+		}
+		catch (TransactionCanceledException ex)
+			when (ex.CancellationReasons.Any(r => r.Code == "ConditionalCheckFailed"))
+		{
+			// The name claim is the only conditional item in this transaction.
+			throw new AppError("Workout name already in use", 409, "WORKOUT_NAME_TAKEN");
+		}
 
 		return workout;
 	}
+
+	/// <summary>
+	/// Renaming needs its own path rather than the generic field update: it has
+	/// to release the old name claim and take the new one atomically, exactly
+	/// like UserRepository.UpdateUsernameAsync.
+	/// </summary>
+	public async Task<Workout> RenameAsync(int userId, int workoutId, string newName, CancellationToken ct = default)
+	{
+		var workout = await RequireAsync(userId, workoutId, ct);
+
+		if (workout.Name == newName) return workout;
+
+		try
+		{
+			await _db.TransactWriteItemsAsync(new TransactWriteItemsRequest
+			{
+				TransactItems =
+				[
+					ClaimName(userId, newName, workoutId),
+					new TransactWriteItem
+					{
+						Delete = new Delete
+						{
+							TableName = Tables.WorkoutNames,
+							Key = new Item { ["userId"] = Dyn.N(userId), ["name"] = Dyn.S(workout.Name) },
+						},
+					},
+					new TransactWriteItem
+					{
+						Update = new Update
+						{
+							TableName = Tables.Workouts,
+							Key = DynamoQuery.Key("userId", userId, "id", workoutId),
+							UpdateExpression = "SET #n = :v",
+							ExpressionAttributeNames = new Dictionary<string, string> { ["#n"] = "name" },
+							ExpressionAttributeValues = new Item { [":v"] = Dyn.S(newName) },
+						},
+					},
+				],
+			}, ct);
+		}
+		catch (TransactionCanceledException ex)
+			when (ex.CancellationReasons.Any(r => r.Code == "ConditionalCheckFailed"))
+		{
+			throw new AppError("Workout name already in use", 409, "WORKOUT_NAME_TAKEN");
+		}
+
+		workout.Name = newName;
+
+		return workout;
+	}
+
+	private static TransactWriteItem ClaimName(int userId, string name, int workoutId) => new()
+	{
+		Put = new Put
+		{
+			TableName = Tables.WorkoutNames,
+			Item = new Item
+			{
+				["userId"] = Dyn.N(userId),
+				["name"] = Dyn.S(name),
+				["workoutId"] = Dyn.N(workoutId),
+			},
+			ConditionExpression = "attribute_not_exists(#n)",
+			ExpressionAttributeNames = new Dictionary<string, string> { ["#n"] = "name" },
+		},
+	};
 
 	/// <summary>
 	/// Mirrors Prisma's `update`, which threw P2025 -> 404 NOT_FOUND when the

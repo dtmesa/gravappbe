@@ -34,6 +34,11 @@ public static class LocalTables
 
 		yield return Table(Tables.Counters, ("entity", S));
 
+		// Lookup tables enforcing name uniqueness per parent, same pattern as
+		// Usernames: a conditional put on (parent, name) claims the name.
+		yield return Table(Tables.WorkoutNames, ("userId", N), ("name", S));
+		yield return Table(Tables.ExerciseNames, ("workoutId", N), ("name", S));
+
 		yield return Table(Tables.Workouts, ("userId", N), ("id", N), local:
 		[
 			Index(Tables.Indexes.WorkoutsByOrder, "userId", N, "order", N),

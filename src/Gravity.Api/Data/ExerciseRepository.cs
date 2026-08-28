@@ -15,6 +15,9 @@ using Item = Dictionary<string, AttributeValue>;
 /// belonged to the workout named in the URL -- so
 /// GET /workouts/1/exercises/99 would happily return an exercise from workout 2.
 /// Everything here is scoped by workoutId, which the client always supplies.
+///
+/// Name uniqueness per workout, matching the Postgres @@unique([workoutId, name]),
+/// is enforced via a conditional put on ExerciseNames.
 /// </summary>
 public class ExerciseRepository
 {
@@ -84,14 +87,91 @@ public class ExerciseRepository
 			CreatedAt = Clock.UtcNow(),
 		};
 
-		await _db.PutItemAsync(new PutItemRequest
+		try
 		{
-			TableName = Tables.Exercises,
-			Item = exercise.ToItem(),
-		}, ct);
+			await _db.TransactWriteItemsAsync(new TransactWriteItemsRequest
+			{
+				TransactItems =
+				[
+					ClaimName(workoutId, name, exercise.Id),
+					new TransactWriteItem { Put = new Put { TableName = Tables.Exercises, Item = exercise.ToItem() } },
+				],
+			}, ct);
+		}
+		catch (TransactionCanceledException ex)
+			when (ex.CancellationReasons.Any(r => r.Code == "ConditionalCheckFailed"))
+		{
+			throw new AppError("Exercise name already in use", 409, "EXERCISE_NAME_TAKEN");
+		}
 
 		return exercise;
 	}
+
+	/// <summary>
+	/// Renaming releases the old name claim and takes the new one atomically,
+	/// so it can't go through the generic single-field update.
+	/// </summary>
+	public async Task<Exercise> RenameAsync(int workoutId, int exerciseId, string newName, CancellationToken ct = default)
+	{
+		var exercise = await RequireAsync(workoutId, exerciseId, ct);
+
+		if (exercise.Name == newName) return exercise;
+
+		try
+		{
+			await _db.TransactWriteItemsAsync(new TransactWriteItemsRequest
+			{
+				TransactItems =
+				[
+					ClaimName(workoutId, newName, exerciseId),
+					new TransactWriteItem
+					{
+						Delete = new Delete
+						{
+							TableName = Tables.ExerciseNames,
+							Key = new Item { ["workoutId"] = Dyn.N(workoutId), ["name"] = Dyn.S(exercise.Name) },
+						},
+					},
+					new TransactWriteItem
+					{
+						Update = new Update
+						{
+							TableName = Tables.Exercises,
+							Key = DynamoQuery.Key("workoutId", workoutId, "id", exerciseId),
+							UpdateExpression = "SET #n = :v",
+							ExpressionAttributeNames = new Dictionary<string, string> { ["#n"] = "name" },
+							ExpressionAttributeValues = new Item { [":v"] = Dyn.S(newName) },
+						},
+					},
+				],
+			}, ct);
+		}
+		catch (TransactionCanceledException ex)
+			when (ex.CancellationReasons.Any(r => r.Code == "ConditionalCheckFailed"))
+		{
+			throw new AppError("Exercise name already in use", 409, "EXERCISE_NAME_TAKEN");
+		}
+
+		exercise.Name = newName;
+
+		return exercise;
+	}
+
+	private static TransactWriteItem ClaimName(int workoutId, string name, int exerciseId) => new()
+	{
+		Put = new Put
+		{
+			TableName = Tables.ExerciseNames,
+			Item = new Item
+			{
+				["workoutId"] = Dyn.N(workoutId),
+				["name"] = Dyn.S(name),
+				["exerciseId"] = Dyn.N(exerciseId),
+			},
+			ConditionExpression = "attribute_not_exists(#n)",
+			ExpressionAttributeNames = new Dictionary<string, string> { ["#n"] = "name" },
+		},
+	};
 
 	public async Task<Exercise> UpdateFieldAsync(int workoutId, int exerciseId, string field, AttributeValue value, CancellationToken ct = default)
 	{

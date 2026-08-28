@@ -102,6 +102,32 @@ Resources:
       KeySchema:
         - {AttributeName: entity, KeyType: HASH}
 
+  # Lookup tables enforcing name uniqueness per parent (userId for workouts,
+  # workoutId for exercises), the same conditional-put pattern as Usernames.
+  WorkoutNamesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}WorkoutNames
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: userId, AttributeType: N}
+        - {AttributeName: name, AttributeType: S}
+      KeySchema:
+        - {AttributeName: userId, KeyType: HASH}
+        - {AttributeName: name, KeyType: RANGE}
+
+  ExerciseNamesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}ExerciseNames
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: workoutId, AttributeType: N}
+        - {AttributeName: name, AttributeType: S}
+      KeySchema:
+        - {AttributeName: workoutId, KeyType: HASH}
+        - {AttributeName: name, KeyType: RANGE}
+
   WorkoutsTable:
     Type: AWS::DynamoDB::Table
     Properties:

@@ -95,6 +95,9 @@ public static class ExerciseEndpoints
 
 			await workouts.RequireAsync(principal.UserId(), workoutId, ct);
 
+			if (field == "name")
+				return Results.Ok(await exercises.RenameAsync(workoutId, id, value.S!, ct));
+
 			return Results.Ok(await exercises.UpdateFieldAsync(workoutId, id, field, value, ct));
 		});
 

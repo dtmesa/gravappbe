@@ -12,7 +12,9 @@ public static class Tables
 	public static readonly string Users = $"{Prefix}Users";
 	public static readonly string Usernames = $"{Prefix}Usernames";
 	public static readonly string Workouts = $"{Prefix}Workouts";
+	public static readonly string WorkoutNames = $"{Prefix}WorkoutNames";
 	public static readonly string Exercises = $"{Prefix}Exercises";
+	public static readonly string ExerciseNames = $"{Prefix}ExerciseNames";
 	public static readonly string WorkoutSessions = $"{Prefix}WorkoutSessions";
 	public static readonly string ExerciseSessions = $"{Prefix}ExerciseSessions";
 	public static readonly string SetSessions = $"{Prefix}SetSessions";
