@@ -9,9 +9,20 @@ using Item = Dictionary<string, AttributeValue>;
 /// Replaces Prisma's `onDelete: Cascade`. DynamoDB has no referential cascade,
 /// so the fan-out is explicit.
 ///
-/// Known limitation: unlike the Postgres version these deletions are not atomic,
-/// so a mid-cascade failure can leave orphans. Children are always removed
-/// before their parent, which makes a retry of the same call safe.
+/// Every method removes the entity itself (and releases its name claim, where
+/// it has one) BEFORE touching its children. This makes a concurrent read or
+/// create against that entity see it as gone immediately and consistently,
+/// rather than possibly observing a parent that still exists with some
+/// children already removed.
+///
+/// Known limitation: unlike the Postgres version this is not atomic, so a
+/// mid-cascade failure can leave orphaned children. Parent-first ordering also
+/// means a retry is NOT a safe way to resume an interrupted cascade -- the
+/// endpoint's own existence check on the parent will now 404 before the retry
+/// ever reaches this service, even though children may remain. Accepted
+/// trade-off: immediate read consistency was judged more valuable than
+/// resumability for a single-user app; orphaned children age out silently
+/// rather than causing visible harm.
 /// </summary>
 public class CascadeService
 {
@@ -39,18 +50,24 @@ public class CascadeService
 	/// <summary>Deletes one exercise session and its sets.</summary>
 	public async Task DeleteExerciseSessionAsync(int workoutSessionId, int exerciseSessionId, CancellationToken ct = default)
 	{
-		await DeleteSetsAsync([exerciseSessionId], ct);
-
 		await _db.DeleteItemAsync(new DeleteItemRequest
 		{
 			TableName = Tables.ExerciseSessions,
 			Key = DynamoQuery.Key("workoutSessionId", workoutSessionId, "id", exerciseSessionId),
 		}, ct);
+
+		await DeleteSetsAsync([exerciseSessionId], ct);
 	}
 
 	/// <summary>Deletes one workout session, its exercise sessions and their sets.</summary>
 	public async Task DeleteWorkoutSessionAsync(int userId, int workoutSessionId, CancellationToken ct = default)
 	{
+		await _db.DeleteItemAsync(new DeleteItemRequest
+		{
+			TableName = Tables.WorkoutSessions,
+			Key = DynamoQuery.Key("userId", userId, "id", workoutSessionId),
+		}, ct);
+
 		var exerciseSessions = await _db.AllAsync(new QueryRequest
 		{
 			TableName = Tables.ExerciseSessions,
@@ -61,17 +78,21 @@ public class CascadeService
 
 		await DeleteSetsAsync(exerciseSessions.Select(e => e.GetInt("id")), ct);
 		await _db.DeleteAllAsync(Tables.ExerciseSessions, exerciseSessions, ct);
-
-		await _db.DeleteItemAsync(new DeleteItemRequest
-		{
-			TableName = Tables.WorkoutSessions,
-			Key = DynamoQuery.Key("userId", userId, "id", workoutSessionId),
-		}, ct);
 	}
 
 	/// <summary>Deletes one exercise plus every exercise session recorded against it.</summary>
 	public async Task DeleteExerciseAsync(int workoutId, int exerciseId, CancellationToken ct = default)
 	{
+		// Releasing the name claim reads the row, so it has to happen before
+		// the row itself is removed -- but both still land before any children.
+		await ReleaseExerciseNameAsync(workoutId, exerciseId, ct);
+
+		await _db.DeleteItemAsync(new DeleteItemRequest
+		{
+			TableName = Tables.Exercises,
+			Key = DynamoQuery.Key("workoutId", workoutId, "id", exerciseId),
+		}, ct);
+
 		var exerciseSessions = await _db.AllAsync(new QueryRequest
 		{
 			TableName = Tables.ExerciseSessions,
@@ -83,14 +104,6 @@ public class CascadeService
 
 		await DeleteSetsAsync(exerciseSessions.Select(e => e.GetInt("id")), ct);
 		await _db.DeleteAllAsync(Tables.ExerciseSessions, exerciseSessions, ct);
-
-		await ReleaseExerciseNameAsync(workoutId, exerciseId, ct);
-
-		await _db.DeleteItemAsync(new DeleteItemRequest
-		{
-			TableName = Tables.Exercises,
-			Key = DynamoQuery.Key("workoutId", workoutId, "id", exerciseId),
-		}, ct);
 	}
 
 	/// <summary>Frees the exercise's claimed name so a new exercise can reuse it.</summary>
@@ -116,6 +129,14 @@ public class CascadeService
 	/// <summary>Deletes a workout, its exercises, its sessions, and everything beneath them.</summary>
 	public async Task DeleteWorkoutAsync(int userId, int workoutId, CancellationToken ct = default)
 	{
+		await ReleaseWorkoutNameAsync(userId, workoutId, ct);
+
+		await _db.DeleteItemAsync(new DeleteItemRequest
+		{
+			TableName = Tables.Workouts,
+			Key = DynamoQuery.Key("userId", userId, "id", workoutId),
+		}, ct);
+
 		var sessions = await _db.AllAsync(new QueryRequest
 		{
 			TableName = Tables.WorkoutSessions,
@@ -140,14 +161,6 @@ public class CascadeService
 		// workout, so sweep by exerciseId rather than relying on the pass above.
 		foreach (var exercise in exercises)
 			await DeleteExerciseAsync(workoutId, exercise.GetInt("id"), ct);
-
-		await ReleaseWorkoutNameAsync(userId, workoutId, ct);
-
-		await _db.DeleteItemAsync(new DeleteItemRequest
-		{
-			TableName = Tables.Workouts,
-			Key = DynamoQuery.Key("userId", userId, "id", workoutId),
-		}, ct);
 	}
 
 	/// <summary>Frees the workout's claimed name so a new workout can reuse it.</summary>
@@ -170,7 +183,7 @@ public class CascadeService
 		}, ct);
 	}
 
-	/// <summary>Deletes an account and every record hanging off it.</summary>
+	/// <summary>Deletes an account's data. The User row itself is removed by the caller first.</summary>
 	public async Task DeleteUserDataAsync(int userId, CancellationToken ct = default)
 	{
 		var workouts = await _db.AllAsync(new QueryRequest

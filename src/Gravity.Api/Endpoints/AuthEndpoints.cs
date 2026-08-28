@@ -111,8 +111,10 @@ public static class AuthEndpoints
 			if (!BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
 				throw new AppError("Incorrect password", 401, "INVALID_PASSWORD");
 
-			await cascade.DeleteUserDataAsync(userId, ct);
+			// User row (and the username claim) goes first, parent-before-children,
+			// so /auth/me and login stop working on this account immediately.
 			await users.DeleteAsync(userId, user.Username, ct);
+			await cascade.DeleteUserDataAsync(userId, ct);
 
 			return Results.NoContent();
 		}).RequireAuthorization();
