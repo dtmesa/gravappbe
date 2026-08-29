@@ -13,6 +13,7 @@ namespace Gravity.Api.Common;
 public class JwtService
 {
 	public const string UserIdClaim = "userId";
+	public const string TokenVersionClaim = "tokenVersion";
 
 	private readonly SymmetricSecurityKey _key;
 
@@ -23,14 +24,20 @@ public class JwtService
 
 	public SymmetricSecurityKey SigningKey => _key;
 
-	public string SignToken(int userId)
+	public string SignToken(int userId, int tokenVersion)
 	{
 		var creds = new SigningCredentials(_key, SecurityAlgorithms.HmacSha256);
 
 		// ClaimValueTypes.Integer64 makes the claim serialize as a JSON number,
 		// matching what jsonwebtoken produced for { userId }.
+		var claims = new[]
+		{
+			new Claim(UserIdClaim, userId.ToString(), ClaimValueTypes.Integer64),
+			new Claim(TokenVersionClaim, tokenVersion.ToString(), ClaimValueTypes.Integer64),
+		};
+
 		var token = new JwtSecurityToken(
-			claims: [new Claim(UserIdClaim, userId.ToString(), ClaimValueTypes.Integer64)],
+			claims: claims,
 			expires: DateTime.UtcNow.AddDays(7),
 			signingCredentials: creds);
 
@@ -52,4 +59,12 @@ public static class ClaimsPrincipalExtensions
 
 		return userId;
 	}
+
+	/// <summary>
+	/// Tokens signed before this claim existed parse as 0, matching a
+	/// freshly-migrated user's default TokenVersion -- so old tokens keep
+	/// working until the first password change/reset bumps the stored value.
+	/// </summary>
+	public static int TokenVersion(this ClaimsPrincipal principal) =>
+		int.TryParse(principal.FindFirst(JwtService.TokenVersionClaim)?.Value, out var v) ? v : 0;
 }

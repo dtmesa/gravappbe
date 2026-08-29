@@ -26,6 +26,15 @@ public static class Rules
 	public static IRuleBuilderOptions<T, string> EntityName<T>(this IRuleBuilder<T, string> rule) =>
 		rule.NotEmpty().MaximumLength(75)
 			.Must(v => v == v.Trim()).WithMessage("Name cannot start or end with spaces");
+
+	public static IRuleBuilderOptions<T, string> Email<T>(this IRuleBuilder<T, string> rule) =>
+		rule.NotEmpty().WithMessage("Email is required")
+			.EmailAddress().WithMessage("Enter a valid email address")
+			.MaximumLength(254).WithMessage("Email is too long");
+
+	/// <summary>Shared by the password-reset and email-confirmation OTP schemas.</summary>
+	public static IRuleBuilderOptions<T, string> SixDigitCode<T>(this IRuleBuilder<T, string> rule) =>
+		rule.Matches(@"^\d{6}$").WithMessage("Enter the 6-digit code");
 }
 
 public class RegisterValidator : AbstractValidator<RegisterRequest>
@@ -70,6 +79,49 @@ public class DeleteAccountValidator : AbstractValidator<DeleteAccountRequest>
 		RuleFor(x => x.Password).NotEmpty().WithMessage("Password is required");
 }
 
+public class ForgotUsernameValidator : AbstractValidator<ForgotUsernameRequest>
+{
+	public ForgotUsernameValidator() => RuleFor(x => x.Email).Email();
+}
+
+public class RequestPasswordResetValidator : AbstractValidator<RequestPasswordResetRequest>
+{
+	public RequestPasswordResetValidator() => RuleFor(x => x.Email).Email();
+}
+
+public class VerifyPasswordResetValidator : AbstractValidator<VerifyPasswordResetRequest>
+{
+	public VerifyPasswordResetValidator()
+	{
+		RuleFor(x => x.Email).Email();
+		RuleFor(x => x.Code).SixDigitCode();
+		RuleFor(x => x.NewPassword).Password();
+	}
+}
+
+public class AddEmailValidator : AbstractValidator<AddEmailRequest>
+{
+	public AddEmailValidator()
+	{
+		RuleFor(x => x.Email).Email();
+		RuleFor(x => x.Password).NotEmpty();
+	}
+}
+
+public class ConfirmEmailValidator : AbstractValidator<ConfirmEmailRequest>
+{
+	public ConfirmEmailValidator() => RuleFor(x => x.Code).SixDigitCode();
+}
+
+public class ChangeEmailValidator : AbstractValidator<ChangeEmailRequest>
+{
+	public ChangeEmailValidator()
+	{
+		RuleFor(x => x.NewEmail).Email();
+		RuleFor(x => x.Password).NotEmpty();
+	}
+}
+
 public class CreateNamedValidator : AbstractValidator<CreateNamedRequest>
 {
 	public CreateNamedValidator() => RuleFor(x => x.Name).EntityName();
@@ -93,6 +145,12 @@ public static class Validate
 	private static readonly DeleteAccountValidator DeleteAccount = new();
 	private static readonly CreateNamedValidator CreateNamed = new();
 	private static readonly CreateExerciseSessionValidator CreateExerciseSession = new();
+	private static readonly ForgotUsernameValidator ForgotUsername = new();
+	private static readonly RequestPasswordResetValidator RequestPasswordReset = new();
+	private static readonly VerifyPasswordResetValidator VerifyPasswordReset = new();
+	private static readonly AddEmailValidator AddEmail = new();
+	private static readonly ConfirmEmailValidator ConfirmEmail = new();
+	private static readonly ChangeEmailValidator ChangeEmail = new();
 
 	public static RegisterRequest Check(RegisterRequest r) { Register.ValidateAndThrow(r); return r; }
 	public static LoginRequest Check(LoginRequest r) { Login.ValidateAndThrow(r); return r; }
@@ -101,6 +159,12 @@ public static class Validate
 	public static DeleteAccountRequest Check(DeleteAccountRequest r) { DeleteAccount.ValidateAndThrow(r); return r; }
 	public static CreateNamedRequest Check(CreateNamedRequest r) { CreateNamed.ValidateAndThrow(r); return r; }
 	public static CreateExerciseSessionRequest Check(CreateExerciseSessionRequest r) { CreateExerciseSession.ValidateAndThrow(r); return r; }
+	public static ForgotUsernameRequest Check(ForgotUsernameRequest r) { ForgotUsername.ValidateAndThrow(r); return r; }
+	public static RequestPasswordResetRequest Check(RequestPasswordResetRequest r) { RequestPasswordReset.ValidateAndThrow(r); return r; }
+	public static VerifyPasswordResetRequest Check(VerifyPasswordResetRequest r) { VerifyPasswordReset.ValidateAndThrow(r); return r; }
+	public static AddEmailRequest Check(AddEmailRequest r) { AddEmail.ValidateAndThrow(r); return r; }
+	public static ConfirmEmailRequest Check(ConfirmEmailRequest r) { ConfirmEmail.ValidateAndThrow(r); return r; }
+	public static ChangeEmailRequest Check(ChangeEmailRequest r) { ChangeEmail.ValidateAndThrow(r); return r; }
 
 	/// <summary>
 	/// Builds an exception carrying a real failure, so the `issues` array in the

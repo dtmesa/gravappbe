@@ -19,6 +19,15 @@ Parameters:
     Type: String
     Default: production
     AllowedValues: [production, development]
+  EmailFromAddress:
+    Type: String
+    Default: ""
+    Description: SES-verified sender identity used for account recovery emails. Required when EmailSender is "ses".
+  EmailSender:
+    Type: String
+    Default: ses
+    AllowedValues: [ses, console]
+    Description: "console" logs emails instead of sending them -- useful for a throwaway/testing stack.
 
 Globals:
   Function:
@@ -41,6 +50,8 @@ Resources:
           JWT_SECRET: !Ref JwtSecret
           CLIENT_ORIGIN: !Ref ClientOrigin
           NODE_ENV: !Ref Environment
+          EMAIL_FROM_ADDRESS: !Ref EmailFromAddress
+          EMAIL_SENDER: !Ref EmailSender
       Policies:
         - Statement:
             - Effect: Allow
@@ -56,6 +67,12 @@ Resources:
               Resource:
                 - !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}*
                 - !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}*/index/*
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource:
+                - !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${EmailFromAddress}
       Events:
         # One catch-all route; the ASP.NET router does the dispatching.
         Proxy:
@@ -101,6 +118,64 @@ Resources:
         - {AttributeName: entity, AttributeType: S}
       KeySchema:
         - {AttributeName: entity, KeyType: HASH}
+
+  # Fixed-window counters for the API's rate limiter (see Common/RateLimiter.cs).
+  # TTL prunes windows automatically; nothing else ever deletes from this table.
+  RateLimitsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}RateLimits
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: key, AttributeType: S}
+      KeySchema:
+        - {AttributeName: key, KeyType: HASH}
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  # Lookup table enforcing email uniqueness -- only confirmed emails are ever
+  # written here; pending/unconfirmed targets live solely on
+  # EmailConfirmationCodesTable until confirmed. Same conditional-write pattern
+  # as UsernamesTable.
+  EmailsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}Emails
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: email, AttributeType: S}
+      KeySchema:
+        - {AttributeName: email, KeyType: HASH}
+
+  # One outstanding password-reset code per email; TTL prunes it automatically.
+  PasswordResetCodesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}PasswordResetCodes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: email, AttributeType: S}
+      KeySchema:
+        - {AttributeName: email, KeyType: HASH}
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  # One outstanding pending-email confirmation per user (serves both add-email
+  # and change-email); TTL expiry silently clears "pending" state.
+  EmailConfirmationCodesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${TablePrefix}EmailConfirmationCodes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: userId, AttributeType: N}
+      KeySchema:
+        - {AttributeName: userId, KeyType: HASH}
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
 
   # Lookup tables enforcing name uniqueness per parent (userId for workouts,
   # workoutId for exercises), the same conditional-put pattern as Usernames.

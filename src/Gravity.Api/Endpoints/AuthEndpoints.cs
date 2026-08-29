@@ -18,12 +18,26 @@ public static class AuthEndpoints
 	{
 		var group = app.MapGroup("/auth");
 
-		group.MapGet("/me", async (ClaimsPrincipal principal, UserRepository users, CancellationToken ct) =>
+		group.MapGet("/me", async (
+			ClaimsPrincipal principal,
+			UserRepository users,
+			EmailConfirmationRepository pendingEmails,
+			CancellationToken ct) =>
 		{
-			var user = await users.GetByIdAsync(principal.UserId(), ct)
+			var userId = principal.UserId();
+
+			var user = await users.GetByIdAsync(userId, ct)
 				?? throw AppError.NotFound("User", "USER_NOT_FOUND");
 
-			return Results.Ok(new { username = user.Username });
+			var pending = await pendingEmails.GetAsync(userId, ct);
+
+			return Results.Ok(new
+			{
+				username = user.Username,
+				email = user.Email,
+				emailConfirmed = user.EmailConfirmed,
+				pendingEmail = pending?.Email,
+			});
 		}).RequireAuthorization();
 
 		group.MapPost("/register", async (RegisterRequest? body, UserRepository users, CancellationToken ct) =>
@@ -34,7 +48,7 @@ public static class AuthEndpoints
 			var user = await users.CreateAsync(request.Username, hashed, ct);
 
 			return Results.Created((string?)null, new { id = user.Id, username = user.Username });
-		});
+		}).RequireRateLimit(o => o.Register);
 
 		group.MapPost("/login", async (LoginRequest? body, UserRepository users, JwtService jwt, CancellationToken ct) =>
 		{
@@ -46,8 +60,8 @@ public static class AuthEndpoints
 			if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
 				throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
 
-			return Results.Ok(new { token = jwt.SignToken(user.Id) });
-		});
+			return Results.Ok(new { token = jwt.SignToken(user.Id, user.TokenVersion) });
+		}).RequireRateLimit(o => o.Login);
 
 		group.MapPatch("/username", async (
 			UpdateUsernameRequest? body,
@@ -67,12 +81,13 @@ public static class AuthEndpoints
 			await users.UpdateUsernameAsync(userId, user.Username, request.NewUsername, ct);
 
 			return Results.Ok(new { username = request.NewUsername });
-		}).RequireAuthorization();
+		}).RequireAuthorization().RequireRateLimit(o => o.AuthMutate);
 
 		group.MapPatch("/password", async (
 			UpdatePasswordRequest? body,
 			ClaimsPrincipal principal,
 			UserRepository users,
+			JwtService jwt,
 			CancellationToken ct) =>
 		{
 			var request = Validate.Check(Validate.Required(body));
@@ -88,10 +103,12 @@ public static class AuthEndpoints
 				throw new AppError("New password must differ from current", 400, "SAME_PASSWORD");
 
 			var hashed = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, WorkFactor);
-			await users.UpdatePasswordAsync(userId, hashed, ct);
+			var newTokenVersion = await users.UpdatePasswordAsync(userId, hashed, ct);
 
-			return Results.NoContent();
-		}).RequireAuthorization();
+			// UpdatePasswordAsync bumps TokenVersion, which invalidates the
+			// caller's own token too -- reissue one so this session survives.
+			return Results.Ok(new { token = jwt.SignToken(userId, newTokenVersion) });
+		}).RequireAuthorization().RequireRateLimit(o => o.AuthMutate);
 
 		// [FromBody] is required: minimal APIs refuse to infer a body on DELETE,
 		// and this route carries one ({ password }).
@@ -117,6 +134,6 @@ public static class AuthEndpoints
 			await cascade.DeleteUserDataAsync(userId, ct);
 
 			return Results.NoContent();
-		}).RequireAuthorization();
+		}).RequireAuthorization().RequireRateLimit(o => o.AuthMutate);
 	}
 }

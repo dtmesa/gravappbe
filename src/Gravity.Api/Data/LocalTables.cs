@@ -23,6 +23,19 @@ public static class LocalTables
 
 			await db.CreateTableAsync(request);
 			logger.LogInformation("Created local table {Table}", request.TableName);
+
+			// DynamoDB Local accepts the TTL setting but doesn't actually
+			// expire items with it; harmless for local dev, matches prod.
+			if (request.TableName == Tables.RateLimits
+				|| request.TableName == Tables.PasswordResetCodes
+				|| request.TableName == Tables.EmailConfirmationCodes)
+			{
+				await db.UpdateTimeToLiveAsync(new UpdateTimeToLiveRequest
+				{
+					TableName = request.TableName,
+					TimeToLiveSpecification = new TimeToLiveSpecification { AttributeName = "expiresAt", Enabled = true },
+				});
+			}
 		}
 	}
 
@@ -33,6 +46,12 @@ public static class LocalTables
 		yield return Table(Tables.Usernames, ("username", S));
 
 		yield return Table(Tables.Counters, ("entity", S));
+
+		yield return Table(Tables.RateLimits, ("key", S));
+
+		yield return Table(Tables.Emails, ("email", S));
+		yield return Table(Tables.PasswordResetCodes, ("email", S));
+		yield return Table(Tables.EmailConfirmationCodes, ("userId", N));
 
 		// Lookup tables enforcing name uniqueness per parent, same pattern as
 		// Usernames: a conditional put on (parent, name) claims the name.

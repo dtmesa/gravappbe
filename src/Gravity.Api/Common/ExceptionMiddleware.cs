@@ -37,6 +37,9 @@ public class ExceptionMiddleware
 		}
 		catch (AppError ex)
 		{
+			if (ex.RetryAfterSeconds is { } retryAfter)
+				context.Response.Headers["Retry-After"] = retryAfter.ToString();
+
 			await Write(context, ex.StatusCode, new { error = ex.Code ?? ex.Message });
 		}
 		catch (Exception ex)

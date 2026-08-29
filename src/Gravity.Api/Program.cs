@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Amazon.DynamoDBv2;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
+using Amazon.SimpleEmailV2;
 using Gravity.Api.Common;
 using Gravity.Api.Data;
 using Gravity.Api.Endpoints;
@@ -40,6 +41,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 	options.SerializerOptions.Converters.Add(new JsonDateTimeConverter()));
 
 builder.Services.AddSingleton<IdGenerator>();
+builder.Services.AddSingleton<RateLimitOptions>();
+builder.Services.AddSingleton<RateLimiter>();
 builder.Services.AddSingleton(new JwtService(jwtSecret));
 builder.Services.AddSingleton<UserRepository>();
 builder.Services.AddSingleton<WorkoutRepository>();
@@ -48,6 +51,28 @@ builder.Services.AddSingleton<WorkoutSessionRepository>();
 builder.Services.AddSingleton<ExerciseSessionRepository>();
 builder.Services.AddSingleton<SetSessionRepository>();
 builder.Services.AddSingleton<CascadeService>();
+builder.Services.AddSingleton<EmailRepository>();
+builder.Services.AddSingleton<PasswordResetRepository>();
+builder.Services.AddSingleton<EmailConfirmationRepository>();
+
+// "console" (the default outside production) logs emails instead of sending
+// them, so the whole recovery/confirmation flow works via `dotnet run` with
+// no AWS credentials at all. Set EMAIL_SENDER=ses for real delivery.
+var emailSenderKind = Environment.GetEnvironmentVariable("EMAIL_SENDER") ?? (isProduction ? "ses" : "console");
+
+if (emailSenderKind == "ses")
+{
+	var fromAddress = Environment.GetEnvironmentVariable("EMAIL_FROM_ADDRESS")
+		?? throw new InvalidOperationException("EMAIL_FROM_ADDRESS is required when EMAIL_SENDER=ses");
+
+	builder.Services.AddSingleton<IAmazonSimpleEmailServiceV2>(_ => new AmazonSimpleEmailServiceV2Client());
+	builder.Services.AddSingleton<IEmailSender>(sp =>
+		new SesEmailSender(sp.GetRequiredService<IAmazonSimpleEmailServiceV2>(), fromAddress));
+}
+else
+{
+	builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();
+}
 
 builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -83,6 +108,28 @@ builder.Services
 				await context.Response.WriteAsync(
 					JsonSerializer.Serialize(new { error = "TOKEN" }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
 			},
+
+			// Rejects tokens whose tokenVersion claim no longer matches the
+			// stored value -- how a password reset invalidates every other
+			// session. Parses the claim manually rather than via the UserId()
+			// extension, since that one throws on a bad claim and
+			// ExceptionMiddleware isn't in the call stack for JWT events.
+			OnTokenValidated = async context =>
+			{
+				var principal = context.Principal!;
+
+				if (!int.TryParse(principal.FindFirst(JwtService.UserIdClaim)?.Value, out var userId))
+				{
+					context.Fail("Invalid token");
+					return;
+				}
+
+				var users = context.HttpContext.RequestServices.GetRequiredService<UserRepository>();
+				var user = await users.GetByIdAsync(userId, context.HttpContext.RequestAborted);
+
+				if (user is null || user.TokenVersion != principal.TokenVersion())
+					context.Fail("Token has been invalidated");
+			},
 		};
 	});
 
@@ -103,6 +150,7 @@ builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<RateLimitMiddleware>();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -111,6 +159,8 @@ app.MapGet("/", () => Results.Ok(new { status = "ok" }));
 
 // Mounted to match the paths src/app.ts registered.
 app.MapAuthEndpoints();
+app.MapRecoveryEndpoints();
+app.MapEmailEndpoints();
 app.MapHistoryEndpoints();
 app.MapWorkoutEndpoints();
 app.MapExerciseEndpoints();

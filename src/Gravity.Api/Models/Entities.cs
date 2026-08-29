@@ -19,6 +19,14 @@ public class User
 	[JsonIgnore]
 	public string Password { get; set; } = string.Empty;
 
+	public string? Email { get; set; }
+	public bool EmailConfirmed { get; set; }
+
+	// Bumped on every password change/reset; a token whose claim doesn't match
+	// this is treated as invalidated. See Program.cs's OnTokenValidated.
+	[JsonIgnore]
+	public int TokenVersion { get; set; }
+
 	public DateTime CreatedAt { get; set; }
 
 	public static User FromItem(Item item) => new()
@@ -26,16 +34,28 @@ public class User
 		Id = item.GetInt("id"),
 		Username = item.GetString("username"),
 		Password = item.GetString("password"),
+		Email = item.GetStringOrNull("email"),
+		EmailConfirmed = item.GetBool("emailConfirmed"),
+		TokenVersion = item.GetInt("tokenVersion"),
 		CreatedAt = item.GetDate("createdAt"),
 	};
 
-	public Item ToItem() => new()
+	public Item ToItem()
 	{
-		["id"] = Dyn.N(Id),
-		["username"] = Dyn.S(Username),
-		["password"] = Dyn.S(Password),
-		["createdAt"] = Dyn.Date(CreatedAt),
-	};
+		var item = new Item
+		{
+			["id"] = Dyn.N(Id),
+			["username"] = Dyn.S(Username),
+			["password"] = Dyn.S(Password),
+			["emailConfirmed"] = Dyn.Bool(EmailConfirmed),
+			["tokenVersion"] = Dyn.N(TokenVersion),
+			["createdAt"] = Dyn.Date(CreatedAt),
+		};
+
+		item.SetIfNotNull("email", Email);
+
+		return item;
+	}
 }
 
 public class Workout

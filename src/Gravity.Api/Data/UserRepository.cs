@@ -94,14 +94,31 @@ public class UserRepository
 		], ct);
 	}
 
-	public Task UpdatePasswordAsync(int userId, string hashedPassword, CancellationToken ct = default) =>
-		_db.UpdateItemAsync(new UpdateItemRequest
+	/// <summary>
+	/// Bumps TokenVersion alongside the password so every other issued token is
+	/// invalidated (see JwtBearerEvents.OnTokenValidated in Program.cs) -- a
+	/// password change is exactly as security-sensitive as a forgotten-password
+	/// reset, so both go through this one method. Returns the new version so the
+	/// caller can reissue a token for its own session; otherwise the caller's
+	/// own token would go stale on its very next request.
+	/// </summary>
+	public async Task<int> UpdatePasswordAsync(int userId, string hashedPassword, CancellationToken ct = default)
+	{
+		var response = await _db.UpdateItemAsync(new UpdateItemRequest
 		{
 			TableName = Tables.Users,
 			Key = new Dictionary<string, AttributeValue> { ["id"] = Dyn.N(userId) },
-			UpdateExpression = "SET password = :p",
-			ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":p"] = Dyn.S(hashedPassword) },
+			UpdateExpression = "SET password = :p ADD tokenVersion :one",
+			ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+			{
+				[":p"] = Dyn.S(hashedPassword),
+				[":one"] = Dyn.N(1),
+			},
+			ReturnValues = ReturnValue.UPDATED_NEW,
 		}, ct);
+
+		return response.Attributes.GetInt("tokenVersion");
+	}
 
 	/// <summary>Removes the user record and releases the username.</summary>
 	public async Task DeleteAsync(int userId, string username, CancellationToken ct = default)

@@ -19,6 +19,10 @@ public static class Tables
 	public static readonly string ExerciseSessions = $"{Prefix}ExerciseSessions";
 	public static readonly string SetSessions = $"{Prefix}SetSessions";
 	public static readonly string Counters = $"{Prefix}Counters";
+	public static readonly string RateLimits = $"{Prefix}RateLimits";
+	public static readonly string Emails = $"{Prefix}Emails";
+	public static readonly string PasswordResetCodes = $"{Prefix}PasswordResetCodes";
+	public static readonly string EmailConfirmationCodes = $"{Prefix}EmailConfirmationCodes";
 
 	public static class Indexes
 	{
