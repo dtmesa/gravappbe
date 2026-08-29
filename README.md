@@ -67,10 +67,13 @@ The previous Node/Express/Prisma/PostgreSQL implementation is preserved in git
 history on the `redisDisabled` branch. Redis-backed caching and rate limiting
 have not been carried over.
 
+`EMAIL_SENDER=ses` (the `SesEmailSender` in `src/Gravity.Api/Common`) talks to
+AWS SES, which is separate from this app's own `isProduction`/`EMAIL_SENDER`
+switch. A new AWS account's SES access starts in the **sandbox**, which can
+only send to individually verified email addresses/domains — real users won't
+receive mail until the account's SES production access request is approved.
+Check the SES console for sandbox status before assuming delivery failures
+are a bug in this codebase.
+
 ## Demo Video
 https://github.com/user-attachments/assets/e7e51932-2f57-41d0-beb9-382045126062
-
-## Plans
-
-- Cross-platform support (Android, iOS, Web)
-- Customization setting features
