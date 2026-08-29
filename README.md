@@ -32,8 +32,3 @@ Backend for cross-platform fitness tracking application built with Express, Type
 
 ## Demo Video
 https://github.com/user-attachments/assets/edb31c91-a186-4c9d-a52e-fab4f2ac85cb
-
-## Plans
-
-- Cross-platform support (Android, iOS, Web)
-- Customization setting features
