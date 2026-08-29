@@ -42,7 +42,13 @@ public static class RecoveryEndpoints
 			var user = await emails.GetByEmailAsync(request.Email, users, ct);
 
 			if (user is not null)
-				await emailSender.SendAsync(request.Email, "Your Gravity username", $"Your username is: {user.Username}", ct);
+			{
+				await emailSender.SendAsync(
+					request.Email,
+					"Your Gravity username",
+					EmailTemplates.ForgotUsername(user.Username),
+					ct);
+			}
 
 			return Results.Ok(new { message = "If that email is registered, we've sent the username to it." });
 		}).RequireRateLimit(o => o.ForgotUsername);
@@ -73,7 +79,7 @@ public static class RecoveryEndpoints
 				await emailSender.SendAsync(
 					request.Email,
 					"Your Gravity password reset code",
-					$"Your password reset code is: {code}\nThis code expires in 15 minutes.",
+					EmailTemplates.PasswordReset(code),
 					ct);
 				await resets.PutAsync(request.Email, user.Id, CodeGenerator.Hash(code), CodeTtl, ct);
 			}

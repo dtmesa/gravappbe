@@ -52,7 +52,7 @@ public static class EmailEndpoints
 			await emailSender.SendAsync(
 				request.Email,
 				"Confirm your Gravity email",
-				$"Your confirmation code is: {code}\nThis code expires in 15 minutes.",
+				EmailTemplates.EmailConfirmation(code),
 				ct);
 			await confirmations.PutAsync(userId, request.Email, CodeGenerator.Hash(code), CodeTtl, ct);
 
@@ -79,7 +79,7 @@ public static class EmailEndpoints
 			await emailSender.SendAsync(
 				pending.Email,
 				"Confirm your Gravity email",
-				$"Your confirmation code is: {code}\nThis code expires in 15 minutes.",
+				EmailTemplates.EmailConfirmation(code),
 				ct);
 			await confirmations.PutAsync(userId, pending.Email, CodeGenerator.Hash(code), CodeTtl, ct);
 
@@ -156,7 +156,7 @@ public static class EmailEndpoints
 			await emailSender.SendAsync(
 				request.NewEmail,
 				"Confirm your Gravity email",
-				$"Your confirmation code is: {code}\nThis code expires in 15 minutes.",
+				EmailTemplates.EmailConfirmation(code),
 				ct);
 			await confirmations.PutAsync(userId, request.NewEmail, CodeGenerator.Hash(code), CodeTtl, ct);
 

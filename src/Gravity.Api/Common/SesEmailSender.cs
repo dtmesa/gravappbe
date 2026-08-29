@@ -14,7 +14,7 @@ public class SesEmailSender : IEmailSender
 		_from = fromAddress;
 	}
 
-	public Task SendAsync(string toAddress, string subject, string body, CancellationToken ct = default) =>
+	public Task SendAsync(string toAddress, string subject, EmailBody body, CancellationToken ct = default) =>
 		_ses.SendEmailAsync(new SendEmailRequest
 		{
 			FromEmailAddress = _from,
@@ -24,7 +24,14 @@ public class SesEmailSender : IEmailSender
 				Simple = new Message
 				{
 					Subject = new Content { Data = subject },
-					Body = new Body { Text = new Content { Data = body } },
+					// Both parts are sent (multipart/alternative) -- HTML for
+					// clients that render it, plain text as the fallback for
+					// clients that don't and for better spam-filter scoring.
+					Body = new Body
+					{
+						Html = new Content { Data = body.Html },
+						Text = new Content { Data = body.Text },
+					},
 				},
 			},
 		}, ct);
