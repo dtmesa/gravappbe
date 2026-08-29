@@ -27,7 +27,7 @@ Parameters:
     Type: String
     Default: ses
     AllowedValues: [ses, console]
-    Description: "console" logs emails instead of sending them -- useful for a throwaway/testing stack.
+    Description: '"console" logs emails instead of sending them -- useful for a throwaway/testing stack.'
 
 Globals:
   Function:

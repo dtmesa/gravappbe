@@ -130,7 +130,7 @@ public static class AuthEndpoints
 
 			// User row (and the username claim) goes first, parent-before-children,
 			// so /auth/me and login stop working on this account immediately.
-			await users.DeleteAsync(userId, user.Username, ct);
+			await users.DeleteAsync(userId, user.Username, user.Email, ct);
 			await cascade.DeleteUserDataAsync(userId, ct);
 
 			return Results.NoContent();

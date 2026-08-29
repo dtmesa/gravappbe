@@ -120,8 +120,8 @@ public class UserRepository
 		return response.Attributes.GetInt("tokenVersion");
 	}
 
-	/// <summary>Removes the user record and releases the username.</summary>
-	public async Task DeleteAsync(int userId, string username, CancellationToken ct = default)
+	/// <summary>Removes the user record and releases the username and, if confirmed, the email.</summary>
+	public async Task DeleteAsync(int userId, string username, string? email, CancellationToken ct = default)
 	{
 		await _db.DeleteItemAsync(new DeleteItemRequest
 		{
@@ -134,6 +134,15 @@ public class UserRepository
 			TableName = Tables.Usernames,
 			Key = new Dictionary<string, AttributeValue> { ["username"] = Dyn.S(username) },
 		}, ct);
+
+		if (email is not null)
+		{
+			await _db.DeleteItemAsync(new DeleteItemRequest
+			{
+				TableName = Tables.Emails,
+				Key = new Dictionary<string, AttributeValue> { ["email"] = Dyn.S(EmailRepository.Normalize(email)) },
+			}, ct);
+		}
 	}
 
 	private static TransactWriteItem ClaimUsername(string username, int userId) => new()
