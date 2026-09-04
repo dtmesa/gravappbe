@@ -147,6 +147,12 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 
 builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
+// Runs a real request through the ASP.NET Core/Lambda pipeline (routing,
+// JSON options, auth middleware) just before SnapStart checkpoints the
+// execution environment, so that JIT work happens pre-snapshot instead of
+// on every restored invocation's first request.
+builder.Services.AddAWSLambdaBeforeSnapshotRequest(new HttpRequestMessage(HttpMethod.Get, "/"));
+
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();

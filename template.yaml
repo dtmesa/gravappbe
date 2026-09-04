@@ -44,6 +44,12 @@ Resources:
       # handler is just the assembly name.
       Handler: Gravity.Api
       CodeUri: src/Gravity.Api/
+      # SnapStart only ever applies to a published version, never $LATEST --
+      # AutoPublishAlias makes SAM publish one on every deploy and points API
+      # Gateway's integration at the alias instead of the bare function ARN.
+      AutoPublishAlias: live
+      SnapStart:
+        ApplyOn: PublishedVersions
       Environment:
         Variables:
           TABLE_PREFIX: !Ref TablePrefix
