@@ -20,26 +20,6 @@ public static partial class HistoryEndpoints
 	[GeneratedRegex(@"^\d{4}-(0[1-9]|1[0-2])$")]
 	private static partial Regex MonthPattern();
 
-	private record NamedRef(string Name);
-
-	private record HistoryExerciseSession(
-		int Id,
-		int Order,
-		int WorkoutSessionId,
-		int ExerciseId,
-		DateTime CreatedAt,
-		NamedRef Exercise,
-		List<SetSession> Sets);
-
-	private record HistorySession(
-		int Id,
-		DateTime Date,
-		int UserId,
-		int WorkoutId,
-		DateTime CreatedAt,
-		NamedRef Workout,
-		List<HistoryExerciseSession> Exercises);
-
 	public static void MapHistoryEndpoints(this IEndpointRouteBuilder app)
 	{
 		app.MapGet("/history/sessions", async (

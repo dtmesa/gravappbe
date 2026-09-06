@@ -5,6 +5,7 @@ using Amazon.SimpleEmailV2;
 using Gravity.Api.Common;
 using Gravity.Api.Data;
 using Gravity.Api.Endpoints;
+using Gravity.Api.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -35,10 +36,12 @@ builder.Services.AddSingleton<IAmazonDynamoDB>(_ =>
 	return new AmazonDynamoDBClient("local", "local", new AmazonDynamoDBConfig { ServiceURL = endpoint });
 });
 
-// camelCase and explicit nulls are the defaults here and match Prisma's output;
-// only the date format needs overriding.
+// GravityJsonContext is the only resolver rather than one link in a chain: a
+// type missing from it must fail loudly here instead of silently falling back
+// to reflection, which will not exist once this is compiled ahead of time. The
+// camelCase and date-format settings moved onto the context itself.
 builder.Services.ConfigureHttpJsonOptions(options =>
-	options.SerializerOptions.Converters.Add(new JsonDateTimeConverter()));
+	options.SerializerOptions.TypeInfoResolver = GravityJsonContext.Default);
 
 builder.Services.AddSingleton<IdGenerator>();
 builder.Services.AddSingleton<RateLimitOptions>();
@@ -106,7 +109,7 @@ builder.Services
 				context.Response.ContentType = "application/json; charset=utf-8";
 
 				await context.Response.WriteAsync(
-					JsonSerializer.Serialize(new { error = "TOKEN" }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+					JsonSerializer.Serialize(new ErrorResponse("TOKEN"), GravityJsonContext.Default.ErrorResponse));
 			},
 
 			// Rejects tokens whose tokenVersion claim no longer matches the
@@ -155,7 +158,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/", () => Results.Ok(new StatusResponse("ok")));
 
 // Mounted to match the paths src/app.ts registered.
 app.MapAuthEndpoints();

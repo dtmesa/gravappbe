@@ -31,13 +31,11 @@ public static class AuthEndpoints
 
 			var pending = await pendingEmails.GetAsync(userId, ct);
 
-			return Results.Ok(new
-			{
-				username = user.Username,
-				email = user.Email,
-				emailConfirmed = user.EmailConfirmed,
-				pendingEmail = pending?.Email,
-			});
+			return Results.Ok(new MeResponse(
+				user.Username,
+				user.Email,
+				user.EmailConfirmed,
+				pending?.Email));
 		}).RequireAuthorization();
 
 		group.MapPost("/register", async (RegisterRequest? body, UserRepository users, CancellationToken ct) =>
@@ -47,7 +45,7 @@ public static class AuthEndpoints
 			var hashed = BCrypt.Net.BCrypt.HashPassword(request.Password, WorkFactor);
 			var user = await users.CreateAsync(request.Username, hashed, ct);
 
-			return Results.Created((string?)null, new { id = user.Id, username = user.Username });
+			return Results.Created((string?)null, new RegisterResponse(user.Id, user.Username));
 		}).RequireRateLimit(o => o.Register);
 
 		group.MapPost("/login", async (LoginRequest? body, UserRepository users, JwtService jwt, CancellationToken ct) =>
@@ -60,7 +58,7 @@ public static class AuthEndpoints
 			if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
 				throw new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS");
 
-			return Results.Ok(new { token = jwt.SignToken(user.Id, user.TokenVersion) });
+			return Results.Ok(new TokenResponse(jwt.SignToken(user.Id, user.TokenVersion)));
 		}).RequireRateLimit(o => o.Login);
 
 		group.MapPatch("/username", async (
@@ -80,7 +78,7 @@ public static class AuthEndpoints
 
 			await users.UpdateUsernameAsync(userId, user.Username, request.NewUsername, ct);
 
-			return Results.Ok(new { username = request.NewUsername });
+			return Results.Ok(new UsernameResponse(request.NewUsername));
 		}).RequireAuthorization().RequireRateLimit(o => o.AuthMutate);
 
 		group.MapPatch("/password", async (
@@ -107,7 +105,7 @@ public static class AuthEndpoints
 
 			// UpdatePasswordAsync bumps TokenVersion, which invalidates the
 			// caller's own token too -- reissue one so this session survives.
-			return Results.Ok(new { token = jwt.SignToken(userId, newTokenVersion) });
+			return Results.Ok(new TokenResponse(jwt.SignToken(userId, newTokenVersion)));
 		}).RequireAuthorization().RequireRateLimit(o => o.AuthMutate);
 
 		// [FromBody] is required: minimal APIs refuse to infer a body on DELETE,

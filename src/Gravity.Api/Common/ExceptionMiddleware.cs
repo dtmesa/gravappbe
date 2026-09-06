@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentValidation;
+using Gravity.Api.Models;
 
 namespace Gravity.Api.Common;
 
@@ -10,8 +11,6 @@ namespace Gravity.Api.Common;
 /// </summary>
 public class ExceptionMiddleware
 {
-	private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
 	private readonly RequestDelegate _next;
 	private readonly ILogger<ExceptionMiddleware> _logger;
 
@@ -29,33 +28,34 @@ public class ExceptionMiddleware
 		}
 		catch (ValidationException ex)
 		{
-			await Write(context, 400, new
-			{
-				error = "VALIDATION_ERROR",
-				issues = ex.Errors.Select(e => new { path = e.PropertyName, message = e.ErrorMessage }),
-			});
+			var issues = ex.Errors
+				.Select(e => new ValidationIssue(e.PropertyName, e.ErrorMessage))
+				.ToList();
+
+			await Write(context, 400, new ErrorResponse("VALIDATION_ERROR", issues));
 		}
 		catch (AppError ex)
 		{
 			if (ex.RetryAfterSeconds is { } retryAfter)
 				context.Response.Headers["Retry-After"] = retryAfter.ToString();
 
-			await Write(context, ex.StatusCode, new { error = ex.Code ?? ex.Message });
+			await Write(context, ex.StatusCode, new ErrorResponse(ex.Code ?? ex.Message));
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Unhandled exception on {Method} {Path}", context.Request.Method, context.Request.Path);
-			await Write(context, 500, new { error = "INTERNAL_SERVER_ERROR" });
+			await Write(context, 500, new ErrorResponse("INTERNAL_SERVER_ERROR"));
 		}
 	}
 
-	private static async Task Write(HttpContext context, int status, object body)
+	private static async Task Write(HttpContext context, int status, ErrorResponse body)
 	{
 		if (context.Response.HasStarted) return;
 
 		context.Response.Clear();
 		context.Response.StatusCode = status;
 		context.Response.ContentType = "application/json; charset=utf-8";
-		await context.Response.WriteAsync(JsonSerializer.Serialize(body, JsonOptions));
+		await context.Response.WriteAsync(
+			JsonSerializer.Serialize(body, GravityJsonContext.Default.ErrorResponse));
 	}
 }

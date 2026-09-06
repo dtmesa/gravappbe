@@ -152,7 +152,7 @@ public class WorkoutSession
 
 	/// <summary>Populated only where the Express route used `include: { workout: true }`.</summary>
 	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-	public object? Workout { get; set; }
+	public Workout? Workout { get; set; }
 
 	public static WorkoutSession FromItem(Item item) => new()
 	{

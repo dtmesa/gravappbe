@@ -56,7 +56,7 @@ public static class EmailEndpoints
 				ct);
 			await confirmations.PutAsync(userId, request.Email, CodeGenerator.Hash(code), CodeTtl, ct);
 
-			return Results.Accepted((string?)null, new { pendingEmail = request.Email });
+			return Results.Accepted((string?)null, new PendingEmailResponse(request.Email));
 		}).RequireAuthorization().RequireRateLimit(o => o.EmailMutate);
 
 		group.MapPost("/resend", async (
@@ -83,7 +83,7 @@ public static class EmailEndpoints
 				ct);
 			await confirmations.PutAsync(userId, pending.Email, CodeGenerator.Hash(code), CodeTtl, ct);
 
-			return Results.Ok(new { pendingEmail = pending.Email });
+			return Results.Ok(new PendingEmailResponse(pending.Email));
 		}).RequireAuthorization().RequireRateLimit(o => o.EmailMutate);
 
 		group.MapPost("/confirm", async (
@@ -120,7 +120,7 @@ public static class EmailEndpoints
 			// so it isn't an enumeration leak.
 			await emails.ConfirmAsync(userId, user.Email, pending.Email, ct);
 
-			return Results.Ok(new { email = pending.Email, emailConfirmed = true });
+			return Results.Ok(new EmailConfirmedResponse(pending.Email, true));
 		}).RequireAuthorization().RequireRateLimit(o => o.EmailMutate);
 
 		group.MapPatch("/", async (
@@ -160,7 +160,7 @@ public static class EmailEndpoints
 				ct);
 			await confirmations.PutAsync(userId, request.NewEmail, CodeGenerator.Hash(code), CodeTtl, ct);
 
-			return Results.Accepted((string?)null, new { pendingEmail = request.NewEmail });
+			return Results.Accepted((string?)null, new PendingEmailResponse(request.NewEmail));
 		}).RequireAuthorization().RequireRateLimit(o => o.EmailMutate);
 	}
 }

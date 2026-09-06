@@ -50,7 +50,7 @@ public static class RecoveryEndpoints
 					ct);
 			}
 
-			return Results.Ok(new { message = "If that email is registered, we've sent the username to it." });
+			return Results.Ok(new MessageResponse("If that email is registered, we've sent the username to it."));
 		}).RequireRateLimit(o => o.ForgotUsername);
 
 		group.MapPost("/password-reset/request", async (
@@ -84,7 +84,7 @@ public static class RecoveryEndpoints
 				await resets.PutAsync(request.Email, user.Id, CodeGenerator.Hash(code), CodeTtl, ct);
 			}
 
-			return Results.Ok(new { message = "If that email is registered, we've sent a reset code to it." });
+			return Results.Ok(new MessageResponse("If that email is registered, we've sent a reset code to it."));
 		}).RequireRateLimit(o => o.PasswordResetRequest);
 
 		group.MapPost("/password-reset/verify", async (
@@ -119,7 +119,7 @@ public static class RecoveryEndpoints
 
 			// A fresh token so the device completing the reset stays logged in
 			// even though this also invalidates every other outstanding token.
-			return Results.Ok(new { token = jwt.SignToken(code.UserId, newTokenVersion) });
+			return Results.Ok(new TokenResponse(jwt.SignToken(code.UserId, newTokenVersion)));
 		}).RequireRateLimit(o => o.PasswordResetVerify);
 	}
 }

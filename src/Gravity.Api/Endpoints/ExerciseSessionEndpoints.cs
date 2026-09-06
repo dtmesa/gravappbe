@@ -123,7 +123,7 @@ public static class ExerciseSessionEndpoints
 			// The original defaulted to 1, not 0, when nothing preceded this.
 			var count = previous is null ? 1 : (await sets.ListAsync(previous.Id, ct)).Count;
 
-			return Results.Ok(new { count });
+			return Results.Ok(new CountResponse(count));
 		});
 	}
 }
