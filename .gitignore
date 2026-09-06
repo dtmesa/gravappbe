@@ -12,3 +12,4 @@ obj/
 
 # DynamoDB Local
 .dynamodb/
+.aot-build/

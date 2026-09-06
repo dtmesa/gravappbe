@@ -31,7 +31,7 @@ Parameters:
 
 Globals:
   Function:
-    Runtime: dotnet10
+    Runtime: provided.al2023
     MemorySize: 1024
     Timeout: 30
     Architectures: [x86_64]
@@ -40,10 +40,10 @@ Resources:
   GravityApi:
     Type: AWS::Serverless::Function
     Properties:
-      # AddAWSLambdaHosting bootstraps the whole ASP.NET pipeline, so the
-      # handler is just the assembly name.
-      Handler: Gravity.Api
-      CodeUri: src/Gravity.Api/
+      # Native AOT produces a self-contained native executable; provided.al2023
+      # invokes it by the conventional name rather than a managed entry point.
+      Handler: bootstrap
+      CodeUri: .aot-build/
       Environment:
         Variables:
           TABLE_PREFIX: !Ref TablePrefix

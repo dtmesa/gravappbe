@@ -1,14 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- provided.al2023 ships no ICU, and the native binary aborts at startup
+         without it. Safe here: every format/parse call already passes
+         CultureInfo.InvariantCulture and nothing compares strings by culture. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.APIGatewayEvents" Version="3.0.1" />
     <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="2.2.1" />
+    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="3.0.1" />
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.103.5" />
     <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.103.1" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
