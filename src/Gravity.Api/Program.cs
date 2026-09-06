@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Amazon.DynamoDBv2;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
+using Amazon.Lambda.Serialization.SystemTextJson;
 using Amazon.SimpleEmailV2;
 using Gravity.Api.Common;
 using Gravity.Api.Data;
@@ -39,9 +40,17 @@ builder.Services.AddSingleton<IAmazonDynamoDB>(_ =>
 // GravityJsonContext is the only resolver rather than one link in a chain: a
 // type missing from it must fail loudly here instead of silently falling back
 // to reflection, which will not exist once this is compiled ahead of time. The
-// camelCase and date-format settings moved onto the context itself.
+// camelCase and number-handling settings live on the context itself.
 builder.Services.ConfigureHttpJsonOptions(options =>
-	options.SerializerOptions.TypeInfoResolver = GravityJsonContext.Default);
+{
+	// The resolver supplies type metadata only -- converters are looked up on
+	// the options instance actually in use, so JsonDateTimeConverter has to be
+	// registered here as well. Without it dates silently lose their trailing
+	// zeros (".57Z" instead of ".570Z"), which the client parses but which no
+	// longer matches what the Node backend emitted.
+	options.SerializerOptions.Converters.Add(new JsonDateTimeConverter());
+	options.SerializerOptions.TypeInfoResolver = GravityJsonContext.Default;
+});
 
 builder.Services.AddSingleton<IdGenerator>();
 builder.Services.AddSingleton<RateLimitOptions>();
@@ -148,7 +157,9 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 	policy.WithMethods("GET", "POST", "PATCH", "DELETE").AllowAnyHeader();
 }));
 
-builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+builder.Services.AddAWSLambdaHosting(
+	LambdaEventSource.HttpApi,
+	new SourceGeneratorLambdaJsonSerializer<LambdaEventJsonContext>());
 
 var app = builder.Build();
 
