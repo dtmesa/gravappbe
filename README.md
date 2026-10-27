@@ -87,7 +87,6 @@ Changing the secret invalidates every issued token: users are logged out once an
 - Inside Lambda, SES is the default sender — the console sender logs codes and is never selected by omission there.
 - Responses are wire-compatible with the previous C# backend, which the current app build depends on: timestamps always carry three fractional digits, nullable fields are explicit `null`s, and every error is `{"error": "CODE"}`.
 - Additive endpoints the current app does not use yet: sparse-body `PATCH /workouts/{id}` (and the exercise and set equivalents), `PUT /workouts/order`, `PUT /workouts/{id}/exercises/order`, `POST …/exerciseSessions/bulk`, and a `token` in the register response.
-- The previous C# implementation is in git history on `main`; the Node/Express/Prisma one before it is on the `redisDisabled` branch.
 
 ## Demo Video
 https://github.com/user-attachments/assets/e7e51932-2f57-41d0-beb9-382045126062
