@@ -2,14 +2,11 @@ node_modules
 .env
 .vscode
 
-/generated/prisma
-
-# .NET
-bin/
-obj/
-*.user
+# SAM
 .aws-sam/
+
+# Go build output (build.sh)
+.go-build/
 
 # DynamoDB Local
 .dynamodb/
-.aot-build/

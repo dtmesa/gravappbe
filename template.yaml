@@ -1,16 +1,21 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Gravity fitness tracker API - ASP.NET Core Minimal API on Lambda with DynamoDB
+Description: Gravity fitness tracker API - Go on Lambda (arm64) with DynamoDB
 
 Parameters:
   TablePrefix:
     Type: String
     Default: Gravity_
     Description: Prefix applied to every table name.
-  JwtSecret:
+  JwtSecretName:
     Type: String
-    NoEcho: true
-    Description: HS256 signing secret. Must match the previous backend's JWT_SECRET, or tokens already stored on devices stop working.
+    Default: gravity/jwt-secret
+    Description: >-
+      Name of the Secrets Manager secret holding the HS256 signing key (a plain
+      string). It is resolved at deploy time into the function's environment, so
+      it costs nothing at cold start -- and unlike the NoEcho parameter it
+      replaces, it can always be read back. Changing it invalidates every issued
+      token.
   ClientOrigin:
     Type: String
     Default: ""
@@ -32,22 +37,38 @@ Parameters:
 Globals:
   Function:
     Runtime: provided.al2023
+    # Do not lower this to save money: bcrypt (cost 12) dominates login and
+    # register, and Lambda scales CPU with memory, so less memory is slower
+    # for about the same GB-second cost.
     MemorySize: 1024
-    Timeout: 30
-    Architectures: [x86_64]
+    # Nothing legitimate runs this long; the handler gives up about half a
+    # second earlier so the client still gets a JSON error body.
+    Timeout: 10
+    Architectures: [arm64]
+  # Configures the implicit API the HttpApi events below create. An explicit
+  # AWS::Serverless::HttpApi resource would be a new API with a new URL, and
+  # the app has its URL compiled in -- so the implicit one has to stay.
+  HttpApi:
+    # Stage-wide volume guard at the edge, replacing the old per-request
+    # DynamoDB write for the general limit. Its 429 body is not the app's
+    # {"error": ...} envelope, so it is set well above normal use; the
+    # per-endpoint auth limits still run in the function.
+    DefaultRouteSettings:
+      ThrottlingRateLimit: 50
+      ThrottlingBurstLimit: 100
 
 Resources:
   GravityApi:
     Type: AWS::Serverless::Function
     Properties:
-      # Native AOT produces a self-contained native executable; provided.al2023
-      # invokes it by the conventional name rather than a managed entry point.
+      # provided.al2023 invokes an executable named bootstrap. Built by
+      # build.sh into .go-build/.
       Handler: bootstrap
-      CodeUri: .aot-build/
+      CodeUri: .go-build/
       Environment:
         Variables:
           TABLE_PREFIX: !Ref TablePrefix
-          JWT_SECRET: !Ref JwtSecret
+          JWT_SECRET: !Sub "{{resolve:secretsmanager:${JwtSecretName}}}"
           CLIENT_ORIGIN: !Ref ClientOrigin
           NODE_ENV: !Ref Environment
           EMAIL_FROM_ADDRESS: !Ref EmailFromAddress
@@ -74,7 +95,7 @@ Resources:
               Resource:
                 - !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${EmailFromAddress}
       Events:
-        # One catch-all route; the ASP.NET router does the dispatching.
+        # One catch-all route; the Go router does the dispatching.
         Proxy:
           Type: HttpApi
           Properties:
@@ -216,6 +237,9 @@ Resources:
         - {AttributeName: userId, KeyType: HASH}
         - {AttributeName: id, KeyType: RANGE}
       LocalSecondaryIndexes:
+        # No longer read: these lists are small enough to sort in the function.
+        # It stays because an LSI can only be removed by replacing the table,
+        # which would delete its data.
         - IndexName: order-index
           KeySchema:
             - {AttributeName: userId, KeyType: HASH}
@@ -235,6 +259,7 @@ Resources:
         - {AttributeName: workoutId, KeyType: HASH}
         - {AttributeName: id, KeyType: RANGE}
       LocalSecondaryIndexes:
+        # No longer read; kept for the same reason as the Workouts LSI.
         - IndexName: order-index
           KeySchema:
             - {AttributeName: workoutId, KeyType: HASH}
@@ -250,7 +275,6 @@ Resources:
         - {AttributeName: userId, AttributeType: N}
         - {AttributeName: id, AttributeType: N}
         - {AttributeName: date, AttributeType: S}
-        - {AttributeName: workoutId, AttributeType: N}
       KeySchema:
         - {AttributeName: userId, KeyType: HASH}
         - {AttributeName: id, KeyType: RANGE}
@@ -261,13 +285,10 @@ Resources:
             - {AttributeName: userId, KeyType: HASH}
             - {AttributeName: date, KeyType: RANGE}
           Projection: {ProjectionType: ALL}
-      GlobalSecondaryIndexes:
-        # Used when cascading a workout delete down to its sessions.
-        - IndexName: workoutId-date-index
-          KeySchema:
-            - {AttributeName: workoutId, KeyType: HASH}
-            - {AttributeName: date, KeyType: RANGE}
-          Projection: {ProjectionType: ALL}
+      # The workoutId-date-index GSI is gone. Its only reader was the
+      # workout-delete cascade, which now filters the user's own partition --
+      # rare, and far cheaper than an index taxing every session write.
+      # Removing a GSI is an in-place update; CloudFormation deletes it.
 
   ExerciseSessionsTable:
     Type: AWS::DynamoDB::Table
